@@ -1,0 +1,80 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "steam-reviews"
+version = "0.1.0"
+description = "Scrape and analyse Steam community reviews."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.2",
+    "selenium>=4.20",
+]
+
+[project.scripts]
+steam-reviews = "steam_reviews.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.10",
+    "pandas-stubs>=2.2",
+    "pdoc>=14.0",
+    "pre-commit>=3.7",
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+]
+notebooks = [
+    "jupyterlab>=4.0",
+    "matplotlib>=3.8",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/steam_reviews"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "D",       # pydocstyle (Google style, see below)
+    "F",       # pyflakes
+    "I",       # isort
+    "N",       # pep8-naming
+    "UP",      # pyupgrade
+    "B",       # bugbear
+    "C4",      # comprehensions
+    "SIM",     # simplify
+    "PTH",     # use pathlib
+    "T20",     # no print(); use logging
+    "RUF",
+    "DOC201",  # docstring must have a Returns section (preview rule)
+    "DOC402",  # docstring must have a Yields section (preview rule)
+]
+preview = true
+explicit-preview-rules = true  # only the preview rules listed above, nothing else
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D", "DOC"]
+"notebooks/*" = ["D", "DOC", "T20", "E402"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src"]
+strict = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --cov=steam_reviews --cov-report=term-missing"
+
+[tool.coverage.run]
+branch = true
