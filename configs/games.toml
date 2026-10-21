@@ -1,0 +1,27 @@
+# Games the scraper knows about.
+# `steam-reviews scrape` with no arguments scrapes all of them.
+# The app id is the number in https://store.steampowered.com/app/<app_id>/
+
+[[games]]
+app_id = 105600
+name = "Terraria"
+
+[[games]]
+app_id = 1222670
+name = "The Sims 4"
+
+[[games]]
+app_id = 578080
+name = "PUBG: BATTLEGROUNDS"
+
+[[games]]
+app_id = 1172470
+name = "Apex Legends"
+
+[[games]]
+app_id = 359550
+name = "Tom Clancy's Rainbow Six Siege"
+
+[[games]]
+app_id = 1938090
+name = "Call of Duty"
