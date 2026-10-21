@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from datetime import date
 
-# Column names of the raw CSVs. Kept identical to the files scraped before the refactor.
 RAW_COLUMNS = ("Game", "Date", "Review", "Hours Played", "Recommendation", "Helpful Votes")
 
 RAW_TO_CLEAN_COLUMNS = {

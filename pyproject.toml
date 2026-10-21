@@ -63,7 +63,8 @@ explicit-preview-rules = true  # only the preview rules listed above, nothing el
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D", "DOC"]
+# Test docstrings describe the scenario; fixture arguments need not be repeated in every test.
+"tests/*" = ["D417"]
 "notebooks/*" = ["D", "DOC", "T20", "E402"]
 
 [tool.mypy]
