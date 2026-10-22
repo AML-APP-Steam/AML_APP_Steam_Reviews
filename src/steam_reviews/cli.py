@@ -1,89 +1,183 @@
-"""Command-line interface: `steam-reviews scrape` and `steam-reviews clean`."""
+"""Expose scraping and cleaning workflows through a small command-line interface."""
 
 import argparse
 import logging
 from collections.abc import Sequence
 
+from selenium.common.exceptions import WebDriverException
+
 from steam_reviews.config import load_games
-from steam_reviews.io import raw_path, read_raw_reviews, write_processed, write_raw_reviews
+from steam_reviews.io import read_raw_reviews, write_processed
 from steam_reviews.processing.cleaning import clean_reviews
-from steam_reviews.scraping.driver import chrome_driver
-from steam_reviews.scraping.scraper import ReviewScraper, ScraperSettings
+from steam_reviews.scraping.scraper import ScraperSettings, ScrapingError
+from steam_reviews.scraping.service import scrape_games
 
 logger = logging.getLogger(__name__)
 
+EXIT_SUCCESS = 0
+EXIT_FAILURE = 1
+LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 
-def build_parser() -> argparse.ArgumentParser:
-    """Build the argument parser with its `scrape` and `clean` subcommands.
 
-    Returns:
-        Parser whose parsed namespace has a `command` attribute, plus the options of that command.
+def _add_scrape_arguments(parser: argparse.ArgumentParser) -> None:
+    """Define CLI options using the same defaults as the Python API.
+
+    Args:
+        parser: Scrape subcommand parser to populate.
     """
     defaults = ScraperSettings()
+    parser.add_argument("app_ids", nargs="*", type=int, help="all configured games if omitted")
+    parser.add_argument(
+        "--target",
+        type=int,
+        default=defaults.target_reviews,
+        help="maximum unique reviews per game",
+    )
+    parser.add_argument(
+        "--filter",
+        dest="browse_filter",
+        default=defaults.browse_filter,
+        help="Steam review ordering",
+    )
+    parser.add_argument("--language", default=defaults.language, help="review content language")
+    parser.add_argument("--headless", action="store_true", help="run Chrome without a window")
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace existing CSVs only after a successful scrape",
+    )
+    parser.add_argument(
+        "--scroll-pause",
+        type=float,
+        default=defaults.scroll_pause_s,
+        help="seconds to wait for cards after each scroll (may be zero)",
+    )
+    parser.add_argument(
+        "--wait-timeout",
+        type=float,
+        default=defaults.wait_timeout_s,
+        help="maximum seconds to wait for the page body",
+    )
+    parser.add_argument(
+        "--page-load-timeout",
+        type=float,
+        default=defaults.page_load_timeout_s,
+        help="maximum seconds for page navigation",
+    )
+    parser.add_argument(
+        "--max-stalled-scrolls",
+        type=int,
+        default=defaults.max_stalled_scrolls,
+        help="consecutive scrolls without new valid reviews before stopping",
+    )
+    parser.add_argument(
+        "--max-stale-retries",
+        type=int,
+        default=defaults.max_stale_retries,
+        help="consecutive stale-page errors before failing",
+    )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI with scraping parameters and configurable logging.
+
+    Returns:
+        Parser for `scrape` and `clean`, displaying option defaults in command help.
+    """
     parser = argparse.ArgumentParser(
         prog="steam-reviews", description="Scrape and clean Steam community reviews."
     )
+    parser.add_argument(
+        "--log-level",
+        choices=("DEBUG", "INFO", "WARNING", "ERROR"),
+        default="INFO",
+        help="logging verbosity (default: INFO)",
+    )
     commands = parser.add_subparsers(dest="command", required=True)
-
-    scrape = commands.add_parser("scrape", help="scrape reviews into data/raw")
-    scrape.add_argument("app_ids", nargs="*", type=int, help="default: all games in games.toml")
-    scrape.add_argument("--target", type=int, default=defaults.target_reviews)
-    scrape.add_argument("--filter", dest="browse_filter", default=defaults.browse_filter)
-    scrape.add_argument("--language", default=defaults.language)
-    scrape.add_argument("--headless", action="store_true")
-
+    scrape = commands.add_parser(
+        "scrape",
+        help="scrape reviews into data/raw",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    _add_scrape_arguments(scrape)
     commands.add_parser("clean", help="build data/processed/reviews.csv from data/raw")
     return parser
 
 
 def _scrape(args: argparse.Namespace) -> int:
-    """Execute the `scrape` subcommand.
+    """Pass CLI options to the public scraping workflow.
 
     Args:
-        args: Parsed command-line arguments containing target app IDs and scraper settings.
+        args: Namespace produced by `build_parser()` for the scrape command.
 
     Returns:
-        Process exit code: always 0.
+        EXIT_SUCCESS when every selected game is saved, otherwise EXIT_FAILURE.
+
+    Raises:
+        ValueError: Scraping parameters or application IDs are invalid.
     """
-    app_ids: list[int] = args.app_ids or list(load_games())
     settings = ScraperSettings(
-        target_reviews=args.target, browse_filter=args.browse_filter, language=args.language
+        target_reviews=args.target,
+        browse_filter=args.browse_filter,
+        language=args.language,
+        scroll_pause_s=args.scroll_pause,
+        wait_timeout_s=args.wait_timeout,
+        page_load_timeout_s=args.page_load_timeout,
+        max_stalled_scrolls=args.max_stalled_scrolls,
+        max_stale_retries=args.max_stale_retries,
     )
-    with chrome_driver(headless=args.headless) as driver:
-        scraper = ReviewScraper(driver, settings)
-        for app_id in app_ids:
-            reviews = scraper.scrape(app_id)
-            write_raw_reviews(raw_path(app_id), reviews)
-            logger.info("App %s: saved %d reviews", app_id, len(reviews))
-    return 0
+    try:
+        app_ids: list[int] = args.app_ids or list(load_games())
+        scrape_games(app_ids, settings=settings, headless=args.headless, overwrite=args.overwrite)
+    except (ScrapingError, WebDriverException, OSError) as exc:
+        logger.error("Scraping failed: %s", exc)
+        logger.debug("Scraping failure details", exc_info=True)
+        return EXIT_FAILURE
+    return EXIT_SUCCESS
 
 
 def _clean() -> int:
-    """Execute the `clean` subcommand.
+    """Validate and clean raw reviews before publishing the processed dataset.
 
     Returns:
-        Process exit code: 0 on success, 1 if no raw reviews are found.
+        EXIT_SUCCESS on success, EXIT_FAILURE for invalid input, empty output, or an I/O error.
     """
-    raw = read_raw_reviews()
-    if raw.empty:
-        logger.error("No raw reviews found; run `steam-reviews scrape` first")
-        return 1
-    path = write_processed(clean_reviews(raw, load_games()))
+    try:
+        raw = read_raw_reviews()
+        if raw.empty:
+            logger.error("No raw reviews found; run `steam-reviews scrape` first")
+            return EXIT_FAILURE
+        cleaned = clean_reviews(raw, load_games())
+        if cleaned.empty:
+            logger.error("No reviews remain after cleaning; existing processed data was preserved")
+            return EXIT_FAILURE
+        path = write_processed(cleaned)
+    except (ValueError, OSError) as exc:
+        logger.error("Cleaning failed: %s", exc)
+        logger.debug("Cleaning failure details", exc_info=True)
+        return EXIT_FAILURE
     logger.info("Saved cleaned reviews to %s", path)
-    return 0
+    return EXIT_SUCCESS
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run the CLI.
+    """Configure logging and dispatch the requested workflow.
 
     Args:
-        argv: Arguments to parse; defaults to `sys.argv[1:]`.
+        argv: CLI arguments; defaults to the process arguments when None.
 
     Returns:
-        Process exit code: 0 on success, 1 if `clean` finds no raw data.
+        EXIT_SUCCESS on success, EXIT_FAILURE for a reported workflow failure.
+
+    Raises:
+        SystemExit: Help was requested (code 0) or arguments are invalid (code 2).
     """
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
-    )
-    args = build_parser().parse_args(argv)
-    return _scrape(args) if args.command == "scrape" else _clean()
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    logging.basicConfig(level=args.log_level, format=LOG_FORMAT)
+    if args.command == "clean":
+        return _clean()
+    try:
+        return _scrape(args)
+    except ValueError as exc:
+        parser.error(str(exc))
