@@ -13,9 +13,10 @@ notebooks/                  exploration and analysis
 src/steam_reviews/
     scraping/               browser, parsers, collector and public scraping workflow
     processing/             pandas only: raw -> typed, deduplicated data
+    analysis/               preprocessing, sentiment, statistics, plots and the analysis CLI
     config.py  schema.py    paths, game registry, column names, Review record
     io.py                   reading and writing the CSVs
-    cli.py                  `steam-reviews scrape | clean`
+    cli.py                  `steam-reviews scrape | clean | analyse`
 tests/
 ```
 
@@ -41,7 +42,7 @@ If `make` is installed, the existing shortcuts are also available:
 
 ```bash
 make install          # uv sync + install git hooks
-uv sync --group notebooks   # optional: JupyterLab, matplotlib
+uv sync --group notebooks   # optional: JupyterLab
 ```
 
 ## Usage
@@ -139,6 +140,40 @@ additional metadata columns are ignored.
 - When a game mapping is supplied, unknown game names remain missing and are logged.
 - Invalid input or an empty cleaned result ends the command with exit code 1 before writing,
   preserving the existing processed dataset.
+
+## Analysis and notebooks
+
+The `analysis` package reads `data/processed/reviews.csv` and reuses one workflow from both the
+CLI and the notebooks. It preprocesses text with NLTK, builds documents and metadata, counts
+words, scores sentiment with VADER, compares before/after periods and writes CSVs, JSON and PNGs
+under `data/processed/analysis/<game>/`.
+
+```bash
+uv run steam-reviews analyse games                 # games available in processed data
+uv run steam-reviews analyse report --game 105600 --cutoff 2024-01-01
+uv run steam-reviews analyse preprocess --game 105600 --cutoff 2024-01-01
+uv run steam-reviews analyse sentiment --game 105600 --cutoff 2024-01-01
+uv run steam-reviews analyse frequencies --game 105600 --cutoff 2024-01-01 --top 20
+uv run steam-reviews analyse wordcloud --game 105600 --cutoff 2024-01-01
+```
+
+`--preset Counter_Strike|PUBG|SIMS` applies the game-specific keywords, replacements and default
+cutoff. `--output-dir` overrides the artifact directory. Invalid games, cutoffs and limits are
+reported with exit code 1 or 2 without touching processed data.
+
+The notebooks in `notebooks/` are plain Python exports (`PROJECT_Counter_Strike.py`,
+`PROJECT_PUBG.py`, `PROJECT_SIMS.py`). They use the same workflow and print the summary tables
+and generated artifact paths. Their default games come from the analysis presets; override the
+selector when testing against the repository sample:
+
+```bash
+STEAM_REVIEWS_GAME=Terraria uv run python notebooks/PROJECT_Counter_Strike.py
+STEAM_REVIEWS_GAME=Terraria STEAM_REVIEWS_CUTOFF=2024-01-01 uv run python notebooks/PROJECT_PUBG.py
+```
+
+Set `STEAM_REVIEWS_GAME` to an application ID or a processed game name. Set
+`STEAM_REVIEWS_CUTOFF` to change the before/after boundary. Missing NLTK corpora are downloaded
+on first use.
 
 ## API documentation
 
