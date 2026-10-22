@@ -161,19 +161,15 @@ uv run steam-reviews analyse wordcloud --game 105600 --cutoff 2024-01-01
 cutoff. `--output-dir` overrides the artifact directory. Invalid games, cutoffs and limits are
 reported with exit code 1 or 2 without touching processed data.
 
-The notebooks in `notebooks/` are plain Python exports (`PROJECT_Counter_Strike.py`,
-`PROJECT_PUBG.py`, `PROJECT_SIMS.py`). They use the same workflow and print the summary tables
-and generated artifact paths. Their default games come from the analysis presets; override the
-selector when testing against the repository sample:
+The notebook in `notebooks/PROJECT_SIMS.ipynb` is Python notebook that demonstrates
+the analysis utilities step by step: loading reviews, preprocessing text, word frequencies, word
+clouds, sentiment scoring, period comparisons, engagement splits and correlations. Each plot is
+created and displayed in the cell that computes it.
 
-```bash
-STEAM_REVIEWS_GAME=Terraria uv run python notebooks/PROJECT_Counter_Strike.py
-STEAM_REVIEWS_GAME=Terraria STEAM_REVIEWS_CUTOFF=2024-01-01 uv run python notebooks/PROJECT_PUBG.py
-```
+Edit the `GAME` and `CUTOFF` values in its setup cell to analyse another game or move the
+before/after boundary.
 
-Set `STEAM_REVIEWS_GAME` to an application ID or a processed game name. Set
-`STEAM_REVIEWS_CUTOFF` to change the before/after boundary. Missing NLTK corpora are downloaded
-on first use.
+Missing NLTK corpora are downloaded on first use.
 
 ## API documentation
 
