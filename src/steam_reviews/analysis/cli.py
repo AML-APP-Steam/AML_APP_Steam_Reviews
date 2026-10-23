@@ -177,9 +177,10 @@ def _run_report(args: argparse.Namespace) -> int:
     Returns:
         Success exit code.
     """
+    cutoff = _cutoff(args)
     report = run_analysis(
         args.game,
-        _cutoff(args),
+        cutoff,
         output_dir=args.output_dir,
         config=_config(args),
         min_word_freq=args.min_word_freq,
@@ -253,13 +254,14 @@ def _run_frequencies(args: argparse.Namespace) -> int:
     Returns:
         Success exit code.
     """
+    cutoff = _cutoff(args)
     reviews = load_reviews(args.game)
     prepared = prepare_documents(
         reviews,
         _config(args),
         min_word_freq=args.min_word_freq,
     )
-    before, after = split_by_cutoff(prepared.reviews, _cutoff(args))
+    before, after = split_by_cutoff(prepared.reviews, cutoff)
     target = _target_dir(args, reviews)
     tables = {
         "overall": word_frequencies(prepared.reviews["document"], top_n=args.top),
@@ -281,13 +283,13 @@ def _run_wordcloud(args: argparse.Namespace) -> int:
     Returns:
         Success exit code.
     """
+    cutoff = _cutoff(args)
     reviews = load_reviews(args.game)
     prepared = prepare_documents(
         reviews,
         _config(args),
         min_word_freq=args.min_word_freq,
     )
-    cutoff = _cutoff(args)
     before, after = split_by_cutoff(prepared.reviews, cutoff)
     target = _target_dir(args, reviews)
     corpora = {

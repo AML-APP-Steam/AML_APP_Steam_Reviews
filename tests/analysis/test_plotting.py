@@ -3,9 +3,11 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import pytest
 from matplotlib.figure import Figure
+from scipy import stats
 
 from steam_reviews.analysis.plotting import (
     plot_boxplot,
@@ -20,6 +22,7 @@ from steam_reviews.analysis.plotting import (
     plot_yearly_sentiment,
     save_figure,
 )
+from steam_reviews.analysis.sentiment import fit_sentiment_distributions
 
 plt.switch_backend("Agg")
 
@@ -127,6 +130,24 @@ def test_plot_distribution_fits_returns_figure() -> None:
     figure = plot_distribution_fits([-0.8, -0.2, 0.0, 0.4, 0.9], title="Fit")
 
     assert isinstance(figure, Figure)
+    plt.close(figure)
+
+
+def test_plot_distribution_fits_scales_rescaled_beta_density() -> None:
+    """Divide the beta density by two after mapping its support onto the score range."""
+    scores = [-0.8, -0.2, 0.0, 0.4, 0.9]
+    figure = plot_distribution_fits(scores, title="Fit")
+    beta_line = next(
+        line for line in figure.axes[0].get_lines() if line.get_label() == "Beta (rescaled)"
+    )
+    beta_x = np.linspace(1e-6, 1.0 - 1e-6, 300)
+    fits = fit_sentiment_distributions(scores)
+
+    np.testing.assert_allclose(
+        beta_line.get_ydata(),
+        stats.beta.pdf(beta_x, *fits.beta) / 2.0,
+    )
+    np.testing.assert_allclose(beta_line.get_xdata(), beta_x * 2.0 - 1.0)
     plt.close(figure)
 
 

@@ -243,7 +243,8 @@ def plot_distribution_fits(
     axes.plot(x_values, stats.norm.pdf(x_values, *fits.normal), "--", label="Normal")
     axes.plot(x_values, stats.laplace.pdf(x_values, *fits.laplace), "-.", label="Laplace")
     beta_x = np.linspace(1e-6, 1.0 - 1e-6, 300)
-    axes.plot(beta_x * 2.0 - 1.0, stats.beta.pdf(beta_x, *fits.beta), label="Beta (rescaled)")
+    beta_density = stats.beta.pdf(beta_x, *fits.beta) / 2.0
+    axes.plot(beta_x * 2.0 - 1.0, beta_density, label="Beta (rescaled)")
     axes.set_title(f"Distribution Fit - {title}")
     axes.set_xlabel("Sentiment Score")
     axes.set_ylabel("Density")

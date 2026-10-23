@@ -35,9 +35,26 @@ def test_analyse_preset_supplies_default_cutoff() -> None:
     assert analysis_cli._cutoff(args) == "2023-09-29"
 
 
-def test_analyse_requires_cutoff_without_preset() -> None:
+def test_analyse_requires_cutoff_without_preset(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fail with a clear exit code when neither cutoff nor preset is given."""
+    workflow = Mock()
+    monkeypatch.setattr(analysis_cli, "run_analysis", workflow)
+
     assert cli.main(["analyse", "report", "--game", "Alpha"]) == 1
+    workflow.assert_not_called()
+
+
+@pytest.mark.parametrize("command", ["frequencies", "wordcloud"])
+def test_period_commands_validate_cutoff_before_loading(
+    command: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reject a missing cutoff before reading or preprocessing reviews."""
+    loader = Mock()
+    monkeypatch.setattr(analysis_cli, "load_reviews", loader)
+
+    assert cli.main(["analyse", command, "--game", "Alpha"]) == 1
+    loader.assert_not_called()
 
 
 def test_analyse_rejects_nonpositive_limits() -> None:
