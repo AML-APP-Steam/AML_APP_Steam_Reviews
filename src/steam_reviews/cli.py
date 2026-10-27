@@ -6,6 +6,7 @@ from collections.abc import Sequence
 
 from selenium.common.exceptions import WebDriverException
 
+from steam_reviews.analysis import cli as analysis_cli
 from steam_reviews.config import load_games
 from steam_reviews.io import read_raw_reviews, write_processed
 from steam_reviews.processing.cleaning import clean_reviews
@@ -101,6 +102,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_scrape_arguments(scrape)
     commands.add_parser("clean", help="build data/processed/reviews.csv from data/raw")
+    analyse = commands.add_parser("analyse", help="analyse processed reviews")
+    analysis_cli.add_parser(analyse)
     return parser
 
 
@@ -177,6 +180,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     logging.basicConfig(level=args.log_level, format=LOG_FORMAT)
     if args.command == "clean":
         return _clean()
+    if args.command == "analyse":
+        return analysis_cli.run(args)
     try:
         return _scrape(args)
     except ValueError as exc:
