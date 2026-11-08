@@ -182,14 +182,18 @@ forward pass instead of generated text:
 | --- | --- | --- | --- | --- |
 | `nano-jev` (default) | 22.7M | `nano-jev` | English | Apache-2.0 + MS MARCO non-commercial note |
 | `laya-multilingual` | 322M | `laya` | 100+ languages | Apache-2.0 |
+| `laya-multilingual-8bit` | 322M | `laya` + Quanto | 100+ languages | Apache-2.0 |
 | `laya-english` | 421M | `laya` | English | Apache-2.0 |
+| `laya-english-8bit` | 421M | `laya` + Quanto | English | Apache-2.0 |
 | `tiny-jev-0.6b` | 596M | `transformers` | English | Apache-2.0 |
+| `tiny-jev-0.6b-8bit` | 596M | `transformers` + Quanto | English | Apache-2.0 |
 
 `nano-jev` is the fastest option and is pinned to version `v0.1` because its generic option
 matching works better for custom sentiment labels than `v1.0`; its MS MARCO lineage makes
 the weights unsuitable for commercial use. `laya-multilingual` trades speed for multilingual
 coverage and more reliable neutral detection. `laya-english` is the English Laya checkpoint.
-`tiny-jev-0.6b` is a 0.6B model trained on review sentiment and is the slowest of the four.
+`tiny-jev-0.6b` is a 0.6B model trained on review sentiment and is the slowest unquantized
+option.
 
 On a 20-review Sims 4 sample, macro F1 against recommendation labels was 0.55 for
 `laya-english`, 0.48 for `laya-multilingual`, 0.43 for VADER, 0.41 for `tiny-jev-0.6b` and
@@ -205,10 +209,24 @@ server.
 `tiny-jev-0.6b` loads custom model code with `trust_remote_code=True`. The revision is pinned
 in `ModelSpec` so the code cannot change silently.
 
-No quantization path is included. The Laya and Nano-Jev APIs do not expose a one-line
-quantized load, and Tiny-Jev already ships bf16 weights (about 1.2GB). Loading one model at a
-time with `clear_model_cache()` keeps the 0.6B models within a 4GB GPU. If a checkpoint still
-does not fit, pass `--device cpu` or `device="cpu"`.
+The `-8bit` variants use Optimum-Quanto weight-only quantization. Laya accepts the flag at
+load time, and Tiny-Jev is quantized after loading because its native `--quantize 8` flag is
+currently MLX-only. The ready-made `p-yan/laya-quanto` checkpoint was tested, but its CUDA
+autocast path conflicts with the quantized weights, so the English variant uses runtime
+Quanto for consistent CPU and CUDA behaviour. Quantization happens after the full weights are
+loaded, so its peak memory is the same as the unquantized model, but steady-state memory is
+lower.
+
+When CUDA is available, unquantized Laya, Tiny-Jev and Nano-Jev models use `torch.compile`
+automatically. Compilation happens at load time; on the 4GB GTX 1650 used here it took about
+139s for `laya-english`, 75s for `laya-multilingual`, 28s for `nano-jev` and 2s for
+`tiny-jev-0.6b`. Quantized variants skip compile because it does not help their Quanto
+kernels. Load one model at a time with `clear_model_cache()` and pass `--device cpu` if a
+checkpoint does not fit.
+
+Measured peak VRAM on the 3.63GiB GTX 1650: `laya-english-8bit` 1.64GiB,
+`laya-multilingual-8bit` 1.25GiB, `tiny-jev-0.6b-8bit` 1.14GiB. Unquantized models fit too
+with compile, peaking at 1.60GiB, 1.26GiB, 1.15GiB and 0.11GiB respectively.
 
 Install the optional dependencies with `uv sync --extra sentiment`. The first call downloads
 the weights from Hugging Face; later calls reuse them. The base install and the VADER

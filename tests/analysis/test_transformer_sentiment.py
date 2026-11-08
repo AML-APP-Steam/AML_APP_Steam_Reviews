@@ -15,6 +15,7 @@ from steam_reviews.analysis.transformer_sentiment import (
     DEFAULT_MODEL,
     MODEL_SPECS,
     SENTIMENT_LABELS,
+    _cuda_available,
     _LayaBackend,
     _NanoJevBackend,
     _TinyJevBackend,
@@ -88,8 +89,11 @@ def test_available_models_are_ordered_by_size() -> None:
     assert [model.key for model in models] == [
         "nano-jev",
         "laya-multilingual",
+        "laya-multilingual-8bit",
         "laya-english",
+        "laya-english-8bit",
         "tiny-jev-0.6b",
+        "tiny-jev-0.6b-8bit",
     ]
     assert [model.parameters for model in models] == sorted(
         model.parameters for model in MODEL_SPECS.values()
@@ -101,7 +105,7 @@ def test_model_spec_rejects_unknown_model() -> None:
     """Report an unknown model with the available choices."""
     with pytest.raises(
         ValueError,
-        match=r"nano-jev, laya-multilingual, laya-english, tiny-jev-0\.6b",
+        match=r"nano-jev, laya-multilingual, laya-multilingual-8bit",
     ):
         model_spec("missing-model")
 
@@ -308,6 +312,19 @@ def test_tiny_jev_backend_rejects_missing_probabilities() -> None:
 
     with pytest.raises(ValueError, match="Tiny-Jev"):
         _TinyJevBackend(Mock(), model).predict_proba(["text"], 1)
+
+
+def test_cuda_available_is_false_without_torch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Do not attempt torch.compile when torch is unavailable."""
+    monkeypatch.setattr(
+        transformer_sentiment.importlib,
+        "import_module",
+        Mock(side_effect=ImportError("missing")),
+    )
+
+    assert _cuda_available(None) is False
 
 
 def test_missing_optional_dependency_reports_install_hint(

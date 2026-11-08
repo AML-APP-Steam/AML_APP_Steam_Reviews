@@ -25,6 +25,7 @@ dependencies = [
 sentiment = [
     "laya>=0.4.15",
     "nano-jev>=1.0.0",
+    "optimum-quanto>=0.2.7",
 ]
 
 [project.scripts]
@@ -89,7 +90,7 @@ strict = true
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = ["nltk.*", "sklearn.*", "wordcloud.*"]
+module = ["nltk.*", "optimum.*", "sklearn.*", "wordcloud.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

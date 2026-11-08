@@ -35,6 +35,7 @@ class ModelSpec:
         license: Weight license.
         revision: Optional repository tag or revision.
         subfolder: Optional checkpoint folder inside the repository.
+        quantize: Optional Optimum-Quanto bit width applied after loading.
     """
 
     key: str
@@ -45,6 +46,7 @@ class ModelSpec:
     license: str
     revision: str | None = None
     subfolder: str | None = None
+    quantize: int = 0
 
 
 MODEL_SPECS: dict[str, ModelSpec] = {
@@ -82,6 +84,35 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         description="596M-parameter Jev-style decision model trained on review sentiment.",
         license="Apache-2.0",
         revision="62449fb3272d68fb8c8fe8a33082566643a76d0b",
+    ),
+    "laya-multilingual-8bit": ModelSpec(
+        key="laya-multilingual-8bit",
+        repo_id="convaiinnovations/laya",
+        backend="laya",
+        parameters=321_900_000,
+        description="322M multilingual Laya quantized to 8-bit Optimum-Quanto weights.",
+        license="Apache-2.0",
+        subfolder="multilingual",
+        quantize=8,
+    ),
+    "laya-english-8bit": ModelSpec(
+        key="laya-english-8bit",
+        repo_id="convaiinnovations/laya",
+        backend="laya",
+        parameters=421_300_000,
+        description="421M English Laya quantized to 8-bit Optimum-Quanto weights.",
+        license="Apache-2.0",
+        quantize=8,
+    ),
+    "tiny-jev-0.6b-8bit": ModelSpec(
+        key="tiny-jev-0.6b-8bit",
+        repo_id="lostargon/Tiny-Jev",
+        backend="tinyjev",
+        parameters=595_778_561,
+        description="596M Tiny-Jev quantized to 8-bit Optimum-Quanto weights.",
+        license="Apache-2.0",
+        revision="62449fb3272d68fb8c8fe8a33082566643a76d0b",
+        quantize=8,
     ),
 }
 
@@ -283,6 +314,45 @@ def clear_model_cache() -> None:
     _cached_backend.cache_clear()
 
 
+def _cuda_available(device: str | None) -> bool:
+    """Return whether CUDA is available for the requested device.
+
+    Args:
+        device: Torch device name, or None for automatic selection.
+
+    Returns:
+        True when the request can run on CUDA.
+    """
+    try:
+        torch = importlib.import_module("torch")
+    except ImportError:
+        return False
+    available = bool(torch.cuda.is_available())
+    return available if device is None else str(device).startswith("cuda") and available
+
+
+def _quantize_model(model: Any, bits: int) -> Any:
+    """Quantize a torch module with Optimum-Quanto weight-only quantization.
+
+    Args:
+        model: Torch module to quantize in place.
+        bits: Quantization width, 8 or 4.
+
+    Returns:
+        The quantized and frozen model.
+
+    Raises:
+        RuntimeError: Optimum-Quanto is not installed.
+    """
+    try:
+        from optimum.quanto import freeze, qint4, qint8, quantize
+    except ImportError as exc:
+        raise RuntimeError(f"Quantization needs optimum-quanto; {EXTRAS_HINT}") from exc
+    quantize(model, weights=qint8 if bits == 8 else qint4)
+    freeze(model)
+    return model
+
+
 def model_spec(model: str) -> ModelSpec:
     """Resolve a model key to its specification.
 
@@ -323,7 +393,11 @@ def _load_backend(spec: ModelSpec, device: str | None) -> _ProbabilityBackend:
         except ImportError as exc:
             raise RuntimeError(f"Nano-Jev is not installed; {EXTRAS_HINT}") from exc
         loader = cast(Any, module).load
-        return _NanoJevBackend(loader(spec.revision or "v1.0", device=device))
+        decider = loader(spec.revision or "v1.0", device=device)
+        if _cuda_available(device):
+            torch = importlib.import_module("torch")
+            decider.model = torch.compile(decider.model)
+        return _NanoJevBackend(decider)
 
     if spec.backend == "laya":
         try:
@@ -331,7 +405,16 @@ def _load_backend(spec: ModelSpec, device: str | None) -> _ProbabilityBackend:
         except ImportError as exc:
             raise RuntimeError(f"Laya is not installed; {EXTRAS_HINT}") from exc
         loader = cast(Any, module).load
-        return _LayaBackend(loader(spec.repo_id, subfolder=spec.subfolder, device=device))
+        agent = loader(
+            spec.repo_id,
+            subfolder=spec.subfolder,
+            device=device,
+            compile=_cuda_available(device) and not spec.quantize,
+        )
+        if spec.quantize:
+            _quantize_model(agent.model, spec.quantize)
+            agent.amp_enabled = False
+        return _LayaBackend(agent)
 
     try:
         transformers = importlib.import_module("transformers")
@@ -350,10 +433,14 @@ def _load_backend(spec: ModelSpec, device: str | None) -> _ProbabilityBackend:
     )
     target = device or ("cuda" if torch.cuda.is_available() else "cpu")
     model.to(target).eval()
+    if spec.quantize:
+        model = _quantize_model(model, spec.quantize)
+    elif _cuda_available(device):
+        model = torch.compile(model)
     return _TinyJevBackend(tokenizer, model)
 
 
-@lru_cache(maxsize=4)
+@lru_cache(maxsize=16)
 def _cached_backend(model: str, device: str | None) -> _ProbabilityBackend:
     """Load and cache a backend for one model and device.
 
