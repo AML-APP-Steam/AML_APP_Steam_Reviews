@@ -1,7 +1,7 @@
-"""Score review sentiment with two small Jev-style transformer decision models.
+"""Score review sentiment with small Jev-style transformer decision models.
 
 The tools are optional. Install them with ``uv sync --extra sentiment``; the first
-call downloads model weights from Hugging Face. Both models are non-generative
+call downloads model weights from Hugging Face. All models are non-generative
 decision encoders, so they return calibrated probabilities in one forward pass.
 """
 
@@ -39,7 +39,7 @@ class ModelSpec:
 
     key: str
     repo_id: str
-    backend: Literal["nanojev", "laya"]
+    backend: Literal["nanojev", "laya", "tinyjev"]
     parameters: int
     description: str
     license: str
@@ -65,6 +65,23 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         description="322M-parameter multilingual decision model covering 100+ languages.",
         license="Apache-2.0",
         subfolder="multilingual",
+    ),
+    "laya-english": ModelSpec(
+        key="laya-english",
+        repo_id="convaiinnovations/laya",
+        backend="laya",
+        parameters=421_300_000,
+        description="421M-parameter English Laya checkpoint, stronger on English text.",
+        license="Apache-2.0",
+    ),
+    "tiny-jev-0.6b": ModelSpec(
+        key="tiny-jev-0.6b",
+        repo_id="lostargon/Tiny-Jev",
+        backend="tinyjev",
+        parameters=595_778_561,
+        description="596M-parameter Jev-style decision model trained on review sentiment.",
+        license="Apache-2.0",
+        revision="62449fb3272d68fb8c8fe8a33082566643a76d0b",
     ),
 }
 
@@ -200,6 +217,58 @@ class _LayaBackend:
         return probabilities
 
 
+class _TinyJevBackend:
+    """Adapt the Tiny-Jev choice API to sentiment probabilities."""
+
+    _CRITERIA: ClassVar[dict[str, str]] = {
+        "negative": "the reviewer is dissatisfied, complains, or rejects the game",
+        "neutral": "mixed, factual, or lukewarm without a clear stance",
+        "positive": "the reviewer is satisfied, praises the game, or recommends it",
+    }
+
+    def __init__(self, tokenizer: Any, model: Any) -> None:
+        """Store a loaded Tiny-Jev tokenizer and model.
+
+        Args:
+            tokenizer: Hugging Face tokenizer.
+            model: Model returned by ``AutoModel.from_pretrained`` with remote code.
+        """
+        self._tokenizer = tokenizer
+        self._model = model
+
+    def predict_proba(
+        self,
+        texts: Sequence[str],
+        batch_size: int,
+    ) -> list[dict[str, float]]:
+        """Score texts one by one with Tiny-Jev's choice primitive.
+
+        Args:
+            texts: Review texts.
+            batch_size: Accepted for interface compatibility.
+
+        Returns:
+            One probability mapping per input text.
+
+        Raises:
+            ValueError: A result does not contain a probabilities mapping.
+        """
+        del batch_size
+        probabilities: list[dict[str, float]] = []
+        for text in texts:
+            result = self._model.choice(
+                self._tokenizer,
+                text,
+                SENTIMENT_QUESTION,
+                self._CRITERIA,
+            )
+            values = result.get("probabilities")
+            if not isinstance(values, dict):
+                raise ValueError("Tiny-Jev did not return sentiment probabilities")
+            probabilities.append(cast(dict[str, float], values))
+        return probabilities
+
+
 def available_models() -> tuple[ModelSpec, ...]:
     """List supported models from smallest to largest.
 
@@ -207,6 +276,11 @@ def available_models() -> tuple[ModelSpec, ...]:
         Model specifications ordered by parameter count.
     """
     return tuple(sorted(MODEL_SPECS.values(), key=lambda spec: spec.parameters))
+
+
+def clear_model_cache() -> None:
+    """Release loaded transformer models so another checkpoint can use the same memory."""
+    _cached_backend.cache_clear()
 
 
 def model_spec(model: str) -> ModelSpec:
@@ -251,12 +325,32 @@ def _load_backend(spec: ModelSpec, device: str | None) -> _ProbabilityBackend:
         loader = cast(Any, module).load
         return _NanoJevBackend(loader(spec.revision or "v1.0", device=device))
 
+    if spec.backend == "laya":
+        try:
+            module = importlib.import_module("laya")
+        except ImportError as exc:
+            raise RuntimeError(f"Laya is not installed; {EXTRAS_HINT}") from exc
+        loader = cast(Any, module).load
+        return _LayaBackend(loader(spec.repo_id, subfolder=spec.subfolder, device=device))
+
     try:
-        module = importlib.import_module("laya")
+        transformers = importlib.import_module("transformers")
+        torch = importlib.import_module("torch")
     except ImportError as exc:
-        raise RuntimeError(f"Laya is not installed; {EXTRAS_HINT}") from exc
-    loader = cast(Any, module).load
-    return _LayaBackend(loader(spec.repo_id, subfolder=spec.subfolder, device=device))
+        raise RuntimeError(f"Tiny-Jev needs transformers and torch; {EXTRAS_HINT}") from exc
+    tokenizer = transformers.AutoTokenizer.from_pretrained(
+        spec.repo_id,
+        revision=spec.revision,
+        trust_remote_code=True,
+    )
+    model = transformers.AutoModel.from_pretrained(
+        spec.repo_id,
+        revision=spec.revision,
+        trust_remote_code=True,
+    )
+    target = device or ("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(target).eval()
+    return _TinyJevBackend(tokenizer, model)
 
 
 @lru_cache(maxsize=4)

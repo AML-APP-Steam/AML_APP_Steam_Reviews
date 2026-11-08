@@ -174,22 +174,38 @@ Missing NLTK corpora are downloaded on first use.
 
 ### Transformer sentiment
 
-`transformer_sentiment.py` adds two optional Jev-style Hugging Face decision models.
+`transformer_sentiment.py` adds optional Jev-style Hugging Face decision models.
 They are non-generative, so each review gets calibrated three-class probabilities in one
-forward pass instead of generated text. Of the Laya, Von, NanoJev and Kev families
-considered for this feature, these two have the smallest parameter counts, and both run on
-Hugging Face `transformers` weights:
+forward pass instead of generated text:
 
 | Model key | Parameters | Backend | Language | License |
 | --- | --- | --- | --- | --- |
 | `nano-jev` (default) | 22.7M | `nano-jev` | English | Apache-2.0 + MS MARCO non-commercial note |
 | `laya-multilingual` | 322M | `laya` | 100+ languages | Apache-2.0 |
+| `laya-english` | 421M | `laya` | English | Apache-2.0 |
+| `tiny-jev-0.6b` | 596M | `transformers` | English | Apache-2.0 |
 
 `nano-jev` is the fastest option and is pinned to version `v0.1` because its generic option
 matching works better for custom sentiment labels than `v1.0`; its MS MARCO lineage makes
 the weights unsuitable for commercial use. `laya-multilingual` trades speed for multilingual
-coverage and more reliable neutral detection. Both are used zero-shot, without fine-tuning
-on Steam reviews.
+coverage and more reliable neutral detection. `laya-english` is the English Laya checkpoint.
+`tiny-jev-0.6b` is a 0.6B model trained on review sentiment and is the most accurate of the
+four on small samples, at the cost of speed.
+
+The 22.7M `sdmlai/nano-jev` is a different model from the 0.6B `C-Tianyu/NanoJev`. The latter
+is a game-action model and is not sentiment-trained, so it is not included. The 0.6B slot
+here uses `lostargon/Tiny-Jev` instead. All models are applied zero-shot unless a checkpoint
+was already trained for sentiment. `jaredpalmer/kev-0.5b` is not included: it is a superseded
+prototype that is not published to PyPI and needs the Kev source checkout or a separate HTTP
+server.
+
+`tiny-jev-0.6b` loads custom model code with `trust_remote_code=True`. The revision is pinned
+in `ModelSpec` so the code cannot change silently.
+
+No quantization path is included. The Laya and Nano-Jev APIs do not expose a one-line
+quantized load, and Tiny-Jev already ships bf16 weights (about 1.2GB). Loading one model at a
+time with `clear_model_cache()` keeps the 0.6B models within a 4GB GPU. If a checkpoint still
+does not fit, pass `--device cpu` or `device="cpu"`.
 
 Install the optional dependencies with `uv sync --extra sentiment`. The first call downloads
 the weights from Hugging Face; later calls reuse them. The base install and the VADER
@@ -228,6 +244,31 @@ Unknown model keys, non-positive batch sizes and malformed probability distribut
 `ValueError`. A missing optional dependency raises `RuntimeError` with the install hint.
 Model weights are cached per process, so notebook and CLI calls with the same model and
 device reuse one loaded checkpoint.
+
+### Comparing sentiment methods
+
+`sentiment_comparison.py` compares VADER and transformer predictions against the Steam
+recommendation as binary truth (`Recommended` -> positive, `Not Recommended` -> negative).
+It reports coverage, neutral rate, accuracy, macro precision/recall/F1, weighted F1,
+Cohen's kappa, Matthews correlation coefficient and a three-class confusion matrix. Neutral
+predictions stay in the confusion matrix but are excluded from binary accuracy and F1, so
+methods that abstain often are not rewarded.
+
+```python
+from steam_reviews.analysis.sentiment_comparison import (
+    compare_sentiment_methods,
+    confusion_matrix,
+    recommendation_truth,
+)
+
+scored["recommendation_label"] = recommendation_truth(scored)
+table = compare_sentiment_methods(scored, ["vader", "transformer"])
+matrix = confusion_matrix(scored["recommendation_label"], scored["transformer"])
+```
+
+The notebook section uses a 20-review sample, caches each model's scores under
+`data/processed/analysis/<game>/sentiment_cache/`, and clears the model cache between runs.
+Rerunning the notebook reuses the cached CSVs instead of rescoring the reviews.
 
 ## API documentation
 

@@ -17,8 +17,10 @@ from steam_reviews.analysis.transformer_sentiment import (
     SENTIMENT_LABELS,
     _LayaBackend,
     _NanoJevBackend,
+    _TinyJevBackend,
     add_transformer_sentiment,
     available_models,
+    clear_model_cache,
     model_spec,
     predict_sentiment,
     sentiment_scores,
@@ -80,10 +82,15 @@ def fake_backend(monkeypatch: pytest.MonkeyPatch) -> FakeBackend:
 
 
 def test_available_models_are_ordered_by_size() -> None:
-    """Expose exactly the two supported models, smallest first."""
+    """Expose all supported models, smallest first."""
     models = available_models()
 
-    assert [model.key for model in models] == ["nano-jev", "laya-multilingual"]
+    assert [model.key for model in models] == [
+        "nano-jev",
+        "laya-multilingual",
+        "laya-english",
+        "tiny-jev-0.6b",
+    ]
     assert [model.parameters for model in models] == sorted(
         model.parameters for model in MODEL_SPECS.values()
     )
@@ -92,7 +99,10 @@ def test_available_models_are_ordered_by_size() -> None:
 
 def test_model_spec_rejects_unknown_model() -> None:
     """Report an unknown model with the available choices."""
-    with pytest.raises(ValueError, match="nano-jev, laya-multilingual"):
+    with pytest.raises(
+        ValueError,
+        match=r"nano-jev, laya-multilingual, laya-english, tiny-jev-0\.6b",
+    ):
         model_spec("missing-model")
 
 
@@ -135,6 +145,18 @@ def test_predict_sentiment_handles_empty_input(fake_backend: FakeBackend) -> Non
     """Return no predictions without loading a backend for empty input."""
     assert predict_sentiment([]) == []
     assert fake_backend.calls == []
+
+
+def test_clear_model_cache_releases_loaded_backends(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Clear the backend cache so another model can reuse the memory."""
+    clear = Mock()
+    monkeypatch.setattr(transformer_sentiment._cached_backend, "cache_clear", clear)
+
+    clear_model_cache()
+
+    clear.assert_called_once()
 
 
 def test_predict_sentiment_rejects_nonpositive_batch_size(fake_backend: FakeBackend) -> None:
@@ -261,6 +283,31 @@ def test_laya_backend_rejects_missing_probabilities() -> None:
 
     with pytest.raises(ValueError, match="sentiment probabilities"):
         _LayaBackend(agent).predict_proba(["text"], 8)
+
+
+def test_tiny_jev_backend_reads_choice_probabilities() -> None:
+    """Adapt Tiny-Jev's per-state choice result to plain probability mappings."""
+    model = Mock()
+    model.choice.return_value = {
+        "probabilities": {"negative": 0.1, "neutral": 0.2, "positive": 0.7}
+    }
+
+    probabilities = _TinyJevBackend(Mock(), model).predict_proba(["one", "two"], 4)
+
+    assert probabilities == [
+        {"negative": 0.1, "neutral": 0.2, "positive": 0.7},
+        {"negative": 0.1, "neutral": 0.2, "positive": 0.7},
+    ]
+    assert model.choice.call_count == 2
+
+
+def test_tiny_jev_backend_rejects_missing_probabilities() -> None:
+    """Report an unexpected Tiny-Jev response shape."""
+    model = Mock()
+    model.choice.return_value = {}
+
+    with pytest.raises(ValueError, match="Tiny-Jev"):
+        _TinyJevBackend(Mock(), model).predict_proba(["text"], 1)
 
 
 def test_missing_optional_dependency_reports_install_hint(
