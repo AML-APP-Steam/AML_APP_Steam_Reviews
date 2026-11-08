@@ -176,18 +176,20 @@ Missing NLTK corpora are downloaded on first use.
 
 `transformer_sentiment.py` adds two optional Jev-style Hugging Face decision models.
 They are non-generative, so each review gets calibrated three-class probabilities in one
-forward pass instead of generated text. Both are the smallest and fastest options that
-support arbitrary sentiment labels, and both run on Hugging Face `transformers` weights:
+forward pass instead of generated text. Of the Laya, Von, NanoJev and Kev families
+considered for this feature, these two have the smallest parameter counts, and both run on
+Hugging Face `transformers` weights:
 
 | Model key | Parameters | Backend | Language | License |
 | --- | --- | --- | --- | --- |
 | `nano-jev` (default) | 22.7M | `nano-jev` | English | Apache-2.0 + MS MARCO non-commercial note |
 | `laya-multilingual` | 322M | `laya` | 100+ languages | Apache-2.0 |
 
-`nano-jev` is pinned to version `v0.1` because its generic option matching works better for
-custom sentiment labels than `v1.0`; its MS MARCO lineage makes the weights unsuitable for
-commercial use. `laya-multilingual` is larger but gives more reliable neutral detection and
-covers non-English reviews. Pick it for quality, `nano-jev` for speed.
+`nano-jev` is the fastest option and is pinned to version `v0.1` because its generic option
+matching works better for custom sentiment labels than `v1.0`; its MS MARCO lineage makes
+the weights unsuitable for commercial use. `laya-multilingual` trades speed for multilingual
+coverage and more reliable neutral detection. Both are used zero-shot, without fine-tuning
+on Steam reviews.
 
 Install the optional dependencies with `uv sync --extra sentiment`. The first call downloads
 the weights from Hugging Face; later calls reuse them. The base install and the VADER
