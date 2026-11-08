@@ -18,6 +18,7 @@ from steam_reviews.analysis.transformer_sentiment import (
     _cuda_available,
     _LayaBackend,
     _NanoJevBackend,
+    _prefers_fp16,
     _TinyJevBackend,
     add_transformer_sentiment,
     available_models,
@@ -325,6 +326,27 @@ def test_cuda_available_is_false_without_torch(
     )
 
     assert _cuda_available(None) is False
+
+
+def test_prefers_fp16_on_pre_ampere_cuda() -> None:
+    """Use fp16 instead of bf16 on GPUs below compute capability 8.0."""
+
+    class FakeCuda:
+        """Report a pre-Ampere compute capability."""
+
+        @staticmethod
+        def get_device_capability(device: str) -> tuple[int, int]:
+            """Return a GTX 1650-like capability."""
+            del device
+            return (7, 5)
+
+    class FakeTorch:
+        """Expose a fake CUDA namespace."""
+
+        cuda = FakeCuda()
+
+    assert _prefers_fp16(FakeTorch(), "cuda") is True
+    assert _prefers_fp16(FakeTorch(), "cpu") is False
 
 
 def test_missing_optional_dependency_reports_install_hint(

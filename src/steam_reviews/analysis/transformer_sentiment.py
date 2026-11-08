@@ -8,7 +8,9 @@ decision encoders, so they return calibrated probabilities in one forward pass.
 from __future__ import annotations
 
 import importlib
+import logging
 import math
+import warnings
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
@@ -331,6 +333,70 @@ def _cuda_available(device: str | None) -> bool:
     return available if device is None else str(device).startswith("cuda") and available
 
 
+class _LowSmFilter(logging.Filter):
+    """Drop the informational Inductor message about disabling GEMM autotuning."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Keep every record except the low-SM autotune notice.
+
+        Args:
+            record: Log record being filtered.
+
+        Returns:
+            False for the low-SM autotune notice, True otherwise.
+        """
+        return "Not enough SMs to use max_autotune_gemm mode" not in record.getMessage()
+
+
+def _configure_inductor(torch: Any, device: str | None = None) -> None:
+    """Disable GEMM autotuning and hide its low-SM notice on small GPUs.
+
+    Args:
+        torch: Imported torch module.
+        device: Torch device name, or None for the current CUDA device.
+    """
+    target = torch.device(device or "cuda")
+    index = target.index if target.index is not None else torch.cuda.current_device()
+    if torch.cuda.get_device_properties(index).multi_processor_count >= 68:
+        return
+    config = getattr(getattr(torch, "_inductor", None), "config", None)
+    if config is not None and hasattr(config, "max_autotune_gemm"):
+        config.max_autotune_gemm = False
+    logger = logging.getLogger("torch._inductor.utils")
+    if not any(isinstance(entry, _LowSmFilter) for entry in logger.filters):
+        logger.addFilter(_LowSmFilter())
+
+
+def _prefers_fp16(torch: Any, device: str) -> bool:
+    """Return whether a CUDA device predates native bfloat16 support.
+
+    Args:
+        torch: Imported torch module.
+        device: Resolved torch device string.
+
+    Returns:
+        True for CUDA devices below compute capability 8.0.
+    """
+    if not device.startswith("cuda"):
+        return False
+    return bool(torch.cuda.get_device_capability(device)[0] < 8)
+
+
+def _compile_model(model: Any, torch: Any, device: str | None = None) -> Any:
+    """Configure Inductor and compile a model.
+
+    Args:
+        model: Torch module to compile.
+        torch: Imported torch module.
+        device: Torch device name, or None for the current CUDA device.
+
+    Returns:
+        Compiled module.
+    """
+    _configure_inductor(torch, device)
+    return torch.compile(model)
+
+
 def _quantize_model(model: Any, bits: int) -> Any:
     """Quantize a torch module with Optimum-Quanto weight-only quantization.
 
@@ -396,7 +462,9 @@ def _load_backend(spec: ModelSpec, device: str | None) -> _ProbabilityBackend:
         decider = loader(spec.revision or "v1.0", device=device)
         if _cuda_available(device):
             torch = importlib.import_module("torch")
-            decider.model = torch.compile(decider.model)
+            target = device or "cuda"
+            if not _prefers_fp16(torch, str(target)):
+                decider.model = _compile_model(decider.model, torch, str(target))
         return _NanoJevBackend(decider)
 
     if spec.backend == "laya":
@@ -405,12 +473,21 @@ def _load_backend(spec: ModelSpec, device: str | None) -> _ProbabilityBackend:
         except ImportError as exc:
             raise RuntimeError(f"Laya is not installed; {EXTRAS_HINT}") from exc
         loader = cast(Any, module).load
-        agent = loader(
-            spec.repo_id,
-            subfolder=spec.subfolder,
-            device=device,
-            compile=_cuda_available(device) and not spec.quantize,
-        )
+        compile_model = _cuda_available(device) and not spec.quantize
+        if compile_model:
+            _configure_inductor(importlib.import_module("torch"), device)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r"laya: this checkpoint ships invalid temperatures.*",
+                category=RuntimeWarning,
+            )
+            agent = loader(
+                spec.repo_id,
+                subfolder=spec.subfolder,
+                device=device,
+                compile=compile_model,
+            )
         if spec.quantize:
             _quantize_model(agent.model, spec.quantize)
             agent.amp_enabled = False
@@ -433,10 +510,12 @@ def _load_backend(spec: ModelSpec, device: str | None) -> _ProbabilityBackend:
     )
     target = device or ("cuda" if torch.cuda.is_available() else "cpu")
     model.to(target).eval()
+    if _prefers_fp16(torch, str(target)):
+        model = model.to(torch.float16)
     if spec.quantize:
         model = _quantize_model(model, spec.quantize)
     elif _cuda_available(device):
-        model = torch.compile(model)
+        model = _compile_model(model, torch, target)
     return _TinyJevBackend(tokenizer, model)
 
 

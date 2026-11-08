@@ -223,8 +223,13 @@ automatically. Compilation happens at load time; on the 4GB GTX 1650 used here i
 `tiny-jev-0.6b`. Quantized variants skip compile. Load one model at a time with
 `clear_model_cache()` and pass `--device cpu` if a checkpoint does not fit.
 
+GPUs below compute capability 8.0, such as the GTX 1650, do not support native bf16
+compilation. Laya already selects fp16 there. Tiny-Jev is cast to fp16 before
+quantization or compile, and Nano-Jev skips compile because its library forces bf16
+autocast. Inductor's low-SM GEMM autotune notice is disabled and filtered.
+
 Measured peak VRAM on the 3.63GiB GTX 1650: `laya-english-8bit` 1.64GiB,
-`laya-multilingual-8bit` 1.25GiB, `tiny-jev-0.6b-8bit` 1.14GiB. Unquantized models fit too
+`laya-multilingual-8bit` 1.25GiB, `tiny-jev-0.6b-8bit` 1.40GiB. Unquantized models fit too
 with compile, peaking at 1.60GiB, 1.26GiB, 1.15GiB and 0.11GiB respectively.
 
 Install the optional dependencies with `uv sync --extra sentiment`. The first call downloads
