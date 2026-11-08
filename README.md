@@ -13,7 +13,7 @@ notebooks/                  exploration and analysis
 src/steam_reviews/
     scraping/               browser, parsers, collector and public scraping workflow
     processing/             pandas only: raw -> typed, deduplicated data
-    analysis/               preprocessing, sentiment, statistics, plots and the analysis CLI
+    analysis/               preprocessing, VADER and transformer sentiment, statistics, plots and the analysis CLI
     config.py  schema.py    paths, game registry, column names, Review record
     io.py                   reading and writing the CSVs
     cli.py                  `steam-reviews scrape | clean | analyse`
@@ -43,6 +43,7 @@ If `make` is installed, the existing shortcuts are also available:
 ```bash
 make install          # uv sync + install git hooks
 uv sync --group notebooks   # optional: JupyterLab
+uv sync --extra sentiment   # optional: Jev-style transformer sentiment models
 ```
 
 ## Usage
@@ -163,13 +164,68 @@ reported with exit code 1 or 2 without touching processed data.
 
 The notebook in `notebooks/PROJECT_SIMS.ipynb` is Python notebook that demonstrates
 the analysis utilities step by step: loading reviews, preprocessing text, word frequencies, word
-clouds, sentiment scoring, period comparisons, engagement splits and correlations. Each plot is
-created and displayed in the cell that computes it.
+clouds, VADER and transformer sentiment scoring, period comparisons, engagement splits and
+correlations. Each plot is created and displayed in the cell that computes it.
 
 Edit the `GAME` and `CUTOFF` values in its setup cell to analyse another game or move the
 before/after boundary.
 
 Missing NLTK corpora are downloaded on first use.
+
+### Transformer sentiment
+
+`transformer_sentiment.py` adds two optional Jev-style Hugging Face decision models.
+They are non-generative, so each review gets calibrated three-class probabilities in one
+forward pass instead of generated text. Both are the smallest and fastest options that
+support arbitrary sentiment labels, and both run on Hugging Face `transformers` weights:
+
+| Model key | Parameters | Backend | Language | License |
+| --- | --- | --- | --- | --- |
+| `nano-jev` (default) | 22.7M | `nano-jev` | English | Apache-2.0 + MS MARCO non-commercial note |
+| `laya-multilingual` | 322M | `laya` | 100+ languages | Apache-2.0 |
+
+`nano-jev` is pinned to version `v0.1` because its generic option matching works better for
+custom sentiment labels than `v1.0`; its MS MARCO lineage makes the weights unsuitable for
+commercial use. `laya-multilingual` is larger but gives more reliable neutral detection and
+covers non-English reviews. Pick it for quality, `nano-jev` for speed.
+
+Install the optional dependencies with `uv sync --extra sentiment`. The first call downloads
+the weights from Hugging Face; later calls reuse them. The base install and the VADER
+analysis workflow do not require either package.
+
+```bash
+uv run steam-reviews analyse transformer-sentiment --game 105600
+uv run steam-reviews analyse transformer-sentiment --game 105600 --model laya-multilingual
+uv run steam-reviews analyse transformer-sentiment --game 105600 --device cpu --batch-size 8
+```
+
+The command writes `transformer_sentiment.csv` beside the other analysis artifacts. From
+Python, keep the existing VADER columns and append the transformer columns:
+
+```python
+from steam_reviews.analysis.sentiment import add_sentiment
+from steam_reviews.analysis.transformer_sentiment import (
+    add_transformer_sentiment,
+    predict_sentiment,
+    transformer_sentiment_summary,
+)
+
+scored = add_transformer_sentiment(add_sentiment(prepared.reviews))
+summary = transformer_sentiment_summary(scored)
+single = predict_sentiment(["Great game, but the server lag is awful."])[0]
+print(single.label, single.score, single.confidence)
+```
+
+Added columns are `transformer_score` (expected polarity `P(positive) - P(negative)` in
+`[-1, 1]`), `transformer_category` (`Positive`, `Neutral` or `Negative`),
+`transformer_confidence`, one probability column per class, and `transformer_model`.
+`predict_sentiment` returns labels and probabilities; `sentiment_scores` returns only the
+polarity scores. Empty input returns an empty result without loading a model.
+
+Unknown model keys, non-positive batch sizes and malformed probability distributions raise
+`ValueError`. A missing optional dependency raises `RuntimeError` with the install hint.
+Model weights are cached per process, so notebook and CLI calls with the same model and
+device reuse one loaded checkpoint.
 
 ## API documentation
 
