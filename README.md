@@ -189,8 +189,11 @@ forward pass instead of generated text:
 matching works better for custom sentiment labels than `v1.0`; its MS MARCO lineage makes
 the weights unsuitable for commercial use. `laya-multilingual` trades speed for multilingual
 coverage and more reliable neutral detection. `laya-english` is the English Laya checkpoint.
-`tiny-jev-0.6b` is a 0.6B model trained on review sentiment and is the most accurate of the
-four on small samples, at the cost of speed.
+`tiny-jev-0.6b` is a 0.6B model trained on review sentiment and is the slowest of the four.
+
+On a 20-review Sims 4 sample, macro F1 against recommendation labels was 0.55 for
+`laya-english`, 0.48 for `laya-multilingual`, 0.43 for VADER, 0.41 for `tiny-jev-0.6b` and
+0.29 for `nano-jev`. That sample is only an illustration, not a benchmark.
 
 The 22.7M `sdmlai/nano-jev` is a different model from the 0.6B `C-Tianyu/NanoJev`. The latter
 is a game-action model and is not sentiment-trained, so it is not included. The 0.6B slot
