@@ -209,20 +209,19 @@ server.
 `tiny-jev-0.6b` loads custom model code with `trust_remote_code=True`. The revision is pinned
 in `ModelSpec` so the code cannot change silently.
 
-The `-8bit` variants use Optimum-Quanto weight-only quantization. Laya accepts the flag at
-load time, and Tiny-Jev is quantized after loading because its native `--quantize 8` flag is
-currently MLX-only. The ready-made `p-yan/laya-quanto` checkpoint was tested, but its CUDA
-autocast path conflicts with the quantized weights, so the English variant uses runtime
-Quanto for consistent CPU and CUDA behaviour. Quantization happens after the full weights are
-loaded, so its peak memory is the same as the unquantized model, but steady-state memory is
-lower.
+The `-8bit` variants use Optimum-Quanto weight-only quantization after loading. Laya has no
+native `quantize` argument in the installed release, and Tiny-Jev's native `--quantize 8`
+flag is currently MLX-only, so both are quantized through Optimum-Quanto. The ready-made
+`p-yan/laya-quanto` checkpoint was tested, but its CUDA autocast path conflicts with the
+quantized weights, so the English variant uses runtime Quanto for consistent CPU and CUDA
+behaviour. Quantization happens after the full weights are loaded, so its peak memory is the
+same as the unquantized model, but steady-state memory is lower.
 
 When CUDA is available, unquantized Laya, Tiny-Jev and Nano-Jev models use `torch.compile`
 automatically. Compilation happens at load time; on the 4GB GTX 1650 used here it took about
 139s for `laya-english`, 75s for `laya-multilingual`, 28s for `nano-jev` and 2s for
-`tiny-jev-0.6b`. Quantized variants skip compile because it does not help their Quanto
-kernels. Load one model at a time with `clear_model_cache()` and pass `--device cpu` if a
-checkpoint does not fit.
+`tiny-jev-0.6b`. Quantized variants skip compile. Load one model at a time with
+`clear_model_cache()` and pass `--device cpu` if a checkpoint does not fit.
 
 Measured peak VRAM on the 3.63GiB GTX 1650: `laya-english-8bit` 1.64GiB,
 `laya-multilingual-8bit` 1.25GiB, `tiny-jev-0.6b-8bit` 1.14GiB. Unquantized models fit too
