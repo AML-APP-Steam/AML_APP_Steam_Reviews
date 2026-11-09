@@ -116,10 +116,9 @@ The function manages Chrome's lifecycle and logs progress; the low-level
   `reference_date` in `parse_review_date`. Deduplication uses all raw review fields, not a
   persistent Steam review ID.
 
-The scraper uses module loggers rather than `print()`. The CLI configures logging once;
-notebooks and other callers control their own logging setup. Pure text parsing remains in
+The CLI configures logging once;  notebooks and other callers control their own logging setup. Pure text parsing remains in
 `scraping/parsers.py`, Selenium access in `driver.py` and `scraper.py`, orchestration in
-`scraping/service.py`, and filesystem writes in `io.py`. Cleaning remains a separate workflow.
+`scraping/service.py`, and filesystem writes in `io.py`.
 
 ### Cleaning behavior
 
@@ -161,7 +160,7 @@ uv run steam-reviews analyse wordcloud --game 105600 --cutoff 2024-01-01
 cutoff. `--output-dir` overrides the artifact directory. Invalid games, cutoffs and limits are
 reported with exit code 1 or 2 without touching processed data.
 
-The notebook in `notebooks/PROJECT_SIMS.ipynb` is Python notebook that demonstrates
+The notebook in `notebooks/sample_EDA_on_reviews.ipynb` is Python notebook that demonstrates
 the analysis utilities step by step: loading reviews, preprocessing text, word frequencies, word
 clouds, sentiment scoring, period comparisons, engagement splits and correlations. Each plot is
 created and displayed in the cell that computes it.
@@ -204,12 +203,7 @@ uv run pytest
 ```
 
 Tests use simulated browsers and temporary directories; they do not contact Steam or
-overwrite repository datasets. Regression cases cover yearless dates, navigation failures,
-stale-element retry limits, safe CSV replacement, and CLI failure reporting. A passing unit
-suite does not verify that Steam's live page layout has remained compatible.
-
+overwrite repository datasets.
 After hook installation, pre-commit runs Ruff, mypy, file hygiene checks and `uv lock`
 on commits, and pytest on push. CI checks the lockfile, linting, formatting, types and tests
 on pull requests and pushes to main, using Python 3.11 and 3.13.
-
-Changes go through pull requests; scraped data is never committed.
