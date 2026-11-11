@@ -18,6 +18,12 @@ from steam_reviews.analysis.presets import ANALYSIS_PRESETS, GamePreset, preset_
 from steam_reviews.analysis.report import run_analysis
 from steam_reviews.analysis.sentiment import add_sentiment, sentiment_summary
 from steam_reviews.analysis.text import PreprocessingConfig, prepare_documents, word_frequencies
+from steam_reviews.analysis.transformer_sentiment import (
+    DEFAULT_MODEL,
+    MODEL_SPECS,
+    add_transformer_sentiment,
+    transformer_sentiment_summary,
+)
 from steam_reviews.io import read_processed
 
 logger = logging.getLogger(__name__)
@@ -75,6 +81,31 @@ def _add_top_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--top", type=_positive_int, default=20, help="words per frequency table")
 
 
+def _add_transformer_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add model, batch-size and device options for transformer sentiment.
+
+    Args:
+        parser: Subcommand parser to populate.
+    """
+    parser.add_argument(
+        "--model",
+        choices=sorted(MODEL_SPECS),
+        default=DEFAULT_MODEL,
+        help="Jev-style transformer model; nano-jev is smallest and fastest",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=_positive_int,
+        default=16,
+        help="reviews per transformer forward pass",
+    )
+    parser.add_argument(
+        "--device",
+        choices=("cpu", "cuda", "mps"),
+        help="torch device; auto-selected when omitted",
+    )
+
+
 def add_parser(analyse: argparse.ArgumentParser) -> None:
     """Populate the `analyse` command with its subcommands.
 
@@ -94,6 +125,14 @@ def add_parser(analyse: argparse.ArgumentParser) -> None:
     sentiment = commands.add_parser("sentiment", help="score reviews with VADER")
     _add_common_arguments(sentiment)
     sentiment.set_defaults(analysis_handler=_run_sentiment)
+
+    transformer = commands.add_parser(
+        "transformer-sentiment",
+        help="score reviews with a small Jev-style transformer model",
+    )
+    _add_common_arguments(transformer)
+    _add_transformer_arguments(transformer)
+    transformer.set_defaults(analysis_handler=_run_transformer_sentiment)
 
     frequencies = commands.add_parser("frequencies", help="write overall and period word counts")
     _add_common_arguments(frequencies)
@@ -242,6 +281,41 @@ def _run_sentiment(args: argparse.Namespace) -> int:
     path = save_table(scored, _target_dir(args, reviews) / "sentiment.csv")
     summary = sentiment_summary(scored)
     logger.info("Wrote %s; mean compound score %.3f", path, summary["mean_score"])
+    return EXIT_SUCCESS
+
+
+def _run_transformer_sentiment(args: argparse.Namespace) -> int:
+    """Score reviews with a Jev-style transformer and write the sentiment table.
+
+    Args:
+        args: Parsed analysis arguments.
+
+    Returns:
+        Success exit code.
+
+    Raises:
+        RuntimeError: The optional sentiment dependencies are not installed.
+    """
+    reviews = load_reviews(args.game)
+    prepared = prepare_documents(
+        reviews,
+        _config(args),
+        min_word_freq=args.min_word_freq,
+    )
+    scored = add_transformer_sentiment(
+        prepared.reviews,
+        model=args.model,
+        batch_size=args.batch_size,
+        device=args.device,
+    )
+    path = save_table(scored, _target_dir(args, reviews) / "transformer_sentiment.csv")
+    summary = transformer_sentiment_summary(scored)
+    logger.info(
+        "Wrote %s with %s; mean expected polarity %.3f",
+        path,
+        args.model,
+        summary["mean_score"],
+    )
     return EXIT_SUCCESS
 
 

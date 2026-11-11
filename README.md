@@ -13,7 +13,7 @@ notebooks/                  exploration and analysis
 src/steam_reviews/
     scraping/               browser, parsers, collector and public scraping workflow
     processing/             pandas only: raw -> typed, deduplicated data
-    analysis/               preprocessing, sentiment, statistics, plots and the analysis CLI
+    analysis/               preprocessing, VADER and transformer sentiment, statistics, plots and the analysis CLI
     config.py  schema.py    paths, game registry, column names, Review record
     io.py                   reading and writing the CSVs
     cli.py                  `steam-reviews scrape | clean | analyse`
@@ -43,6 +43,7 @@ If `make` is installed, the existing shortcuts are also available:
 ```bash
 make install          # uv sync + install git hooks
 uv sync --group notebooks   # optional: JupyterLab
+uv sync --extra sentiment   # optional: Jev-style transformer sentiment models
 ```
 
 ## Usage
@@ -162,13 +163,136 @@ reported with exit code 1 or 2 without touching processed data.
 
 The notebook in `notebooks/sample_EDA_on_reviews.ipynb` is Python notebook that demonstrates
 the analysis utilities step by step: loading reviews, preprocessing text, word frequencies, word
-clouds, sentiment scoring, period comparisons, engagement splits and correlations. Each plot is
-created and displayed in the cell that computes it.
+clouds, VADER and transformer sentiment scoring, period comparisons, engagement splits and
+correlations. Each plot is created and displayed in the cell that computes it.
 
 Edit the `GAME` and `CUTOFF` values in its setup cell to analyse another game or move the
 before/after boundary.
 
 Missing NLTK corpora are downloaded on first use.
+
+### Transformer sentiment
+
+`transformer_sentiment.py` adds optional Jev-style Hugging Face decision models.
+They are non-generative, so each review gets calibrated three-class probabilities in one
+forward pass instead of generated text:
+
+| Model key | Parameters | Backend | Language | License |
+| --- | --- | --- | --- | --- |
+| `nano-jev` (default) | 22.7M | `nano-jev` | English | Apache-2.0 + MS MARCO non-commercial note |
+| `laya-multilingual` | 322M | `laya` | 100+ languages | Apache-2.0 |
+| `laya-multilingual-8bit` | 322M | `laya` + Quanto | 100+ languages | Apache-2.0 |
+| `laya-english` | 421M | `laya` | English | Apache-2.0 |
+| `laya-english-8bit` | 421M | `laya` + Quanto | English | Apache-2.0 |
+| `tiny-jev-0.6b` | 596M | `transformers` | English | Apache-2.0 |
+| `tiny-jev-0.6b-8bit` | 596M | `transformers` + Quanto | English | Apache-2.0 |
+
+`nano-jev` is the fastest option and is pinned to version `v0.1` because its generic option
+matching works better for custom sentiment labels than `v1.0`; its MS MARCO lineage makes
+the weights unsuitable for commercial use. `laya-multilingual` trades speed for multilingual
+coverage and more reliable neutral detection. `laya-english` is the English Laya checkpoint.
+`tiny-jev-0.6b` is a 0.6B model trained on review sentiment and is the slowest unquantized
+option.
+
+On a 20-review Sims 4 sample, macro F1 against recommendation labels was 0.55 for
+`laya-english`, 0.48 for `laya-multilingual`, 0.43 for VADER, 0.41 for `tiny-jev-0.6b` and
+0.29 for `nano-jev`. That sample is only an illustration, not a benchmark.
+
+The 22.7M `sdmlai/nano-jev` is a different model from the 0.6B `C-Tianyu/NanoJev`. The latter
+is a game-action model and is not sentiment-trained, so it is not included. The 0.6B slot
+here uses `lostargon/Tiny-Jev` instead. All models are applied zero-shot unless a checkpoint
+was already trained for sentiment. `jaredpalmer/kev-0.5b` is not included: it is a superseded
+prototype that is not published to PyPI and needs the Kev source checkout or a separate HTTP
+server.
+
+`tiny-jev-0.6b` loads custom model code with `trust_remote_code=True`. The revision is pinned
+in `ModelSpec` so the code cannot change silently.
+
+The `-8bit` variants use Optimum-Quanto weight-only quantization after loading. Laya has no
+native `quantize` argument in the installed release, and Tiny-Jev's native `--quantize 8`
+flag is currently MLX-only, so both are quantized through Optimum-Quanto. The ready-made
+`p-yan/laya-quanto` checkpoint was tested, but its CUDA autocast path conflicts with the
+quantized weights, so the English variant uses runtime Quanto for consistent CPU and CUDA
+behaviour. Quantization happens after the full weights are loaded, so its peak memory is the
+same as the unquantized model, but steady-state memory is lower.
+
+When CUDA is available, unquantized Laya, Tiny-Jev and Nano-Jev models use `torch.compile`
+automatically. Compilation happens at load time; on the 4GB GTX 1650 used here it took about
+139s for `laya-english`, 75s for `laya-multilingual`, 28s for `nano-jev` and 2s for
+`tiny-jev-0.6b`. Quantized variants skip compile. Load one model at a time with
+`clear_model_cache()` and pass `--device cpu` if a checkpoint does not fit.
+
+GPUs below compute capability 8.0, such as the GTX 1650, do not support native bf16
+compilation. Laya already selects fp16 there. Tiny-Jev is cast to fp16 before
+quantization or compile, and Nano-Jev skips compile because its library forces bf16
+autocast. Inductor's low-SM GEMM autotune notice is disabled and filtered.
+
+Measured peak VRAM on the 3.63GiB GTX 1650: `laya-english-8bit` 1.64GiB,
+`laya-multilingual-8bit` 1.25GiB, `tiny-jev-0.6b-8bit` 1.40GiB. Unquantized models fit too
+with compile, peaking at 1.60GiB, 1.26GiB, 1.15GiB and 0.11GiB respectively.
+
+Install the optional dependencies with `uv sync --extra sentiment`. The first call downloads
+the weights from Hugging Face; later calls reuse them. The base install and the VADER
+analysis workflow do not require either package.
+
+```bash
+uv run steam-reviews analyse transformer-sentiment --game 105600
+uv run steam-reviews analyse transformer-sentiment --game 105600 --model laya-multilingual
+uv run steam-reviews analyse transformer-sentiment --game 105600 --device cpu --batch-size 8
+```
+
+The command writes `transformer_sentiment.csv` beside the other analysis artifacts. From
+Python, keep the existing VADER columns and append the transformer columns:
+
+```python
+from steam_reviews.analysis.sentiment import add_sentiment
+from steam_reviews.analysis.transformer_sentiment import (
+    add_transformer_sentiment,
+    predict_sentiment,
+    transformer_sentiment_summary,
+)
+
+scored = add_transformer_sentiment(add_sentiment(prepared.reviews))
+summary = transformer_sentiment_summary(scored)
+single = predict_sentiment(["Great game, but the server lag is awful."])[0]
+print(single.label, single.score, single.confidence)
+```
+
+Added columns are `transformer_score` (expected polarity `P(positive) - P(negative)` in
+`[-1, 1]`), `transformer_category` (`Positive`, `Neutral` or `Negative`),
+`transformer_confidence`, one probability column per class, and `transformer_model`.
+`predict_sentiment` returns labels and probabilities; `sentiment_scores` returns only the
+polarity scores. Empty input returns an empty result without loading a model.
+
+Unknown model keys, non-positive batch sizes and malformed probability distributions raise
+`ValueError`. A missing optional dependency raises `RuntimeError` with the install hint.
+Model weights are cached per process, so notebook and CLI calls with the same model and
+device reuse one loaded checkpoint.
+
+### Comparing sentiment methods
+
+`sentiment_comparison.py` compares VADER and transformer predictions against the Steam
+recommendation as binary truth (`Recommended` -> positive, `Not Recommended` -> negative).
+It reports coverage, neutral rate, accuracy, macro precision/recall/F1, weighted F1,
+Cohen's kappa, Matthews correlation coefficient and a three-class confusion matrix. Neutral
+predictions stay in the confusion matrix but are excluded from binary accuracy and F1, so
+methods that abstain often are not rewarded.
+
+```python
+from steam_reviews.analysis.sentiment_comparison import (
+    compare_sentiment_methods,
+    confusion_matrix,
+    recommendation_truth,
+)
+
+scored["recommendation_label"] = recommendation_truth(scored)
+table = compare_sentiment_methods(scored, ["vader", "transformer"])
+matrix = confusion_matrix(scored["recommendation_label"], scored["transformer"])
+```
+
+The notebook section uses a 20-review sample, caches each model's scores under
+`data/processed/analysis/<game>/sentiment_cache/`, and clears the model cache between runs.
+Rerunning the notebook reuses the cached CSVs instead of rescoring the reviews.
 
 ## API documentation
 
