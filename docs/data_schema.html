@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steam Reviews - Data Schema</title>
+    <style>
+        body {
+            font-family: 'Motiva Sans', Arial, sans-serif;
+            background-color: #1b2838;
+            color: #c7d5e0;
+            margin: 40px auto;
+            max-width: 850px;
+            line-height: 1.6;
+            padding: 0 20px;
+        }
+        h2 {
+            color: #ffffff;
+            font-size: 24px;
+            border-bottom: 1px solid #2a475e;
+            padding-bottom: 10px;
+        }
+        h3 {
+            color: #ffffff;
+            margin-top: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #171a21;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        th, td {
+            padding: 15px;
+            border: 1px solid #2a475e;
+            text-align: left;
+        }
+        th {
+            background-color: #0b121a;
+            color: #66c0f4;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        tr:nth-child(even) {
+            background-color: #1e2a36;
+        }
+        strong {
+            color: #ffffff;
+        }
+        em {
+            color: #8f98a0;
+        }
+        .example-box {
+            background-color: #171a21;
+            padding: 20px;
+            border-radius: 4px;
+            border-left: 4px solid #66c0f4;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .example-item {
+            margin-bottom: 12px;
+            font-size: 15px;
+        }
+        .example-item:last-child {
+            margin-bottom: 0;
+        }
+        .recommended {
+            color: #54a544;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .annotation {
+            color: #8f98a0;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h2>🗂️ CSV Columns Explained - Data Schema</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>CSV Column</th>
+                <th>What It Means on Steam</th>
+                <th>Where It's Found on the Review</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Date</strong></td>
+                <td>The date the user posted the review. Example: <em>Posted: May 10, 2024</em></td>
+                <td>Shown in small gray text like: <em>Posted: ...</em></td>
+            </tr>
+            <tr>
+                <td><strong>Review</strong></td>
+                <td>The body/content of the review — the text the user wrote about their experience with the game.</td>
+                <td>The main paragraph below the review title.</td>
+            </tr>
+            <tr>
+                <td><strong>Hours Played</strong></td>
+                <td>How many hours the user has played the game at the time of writing the review.</td>
+                <td>Appears near the top: <em>"123.4 hrs on record"</em></td>
+            </tr>
+            <tr>
+                <td><strong>Helpful Votes</strong></td>
+                <td>The number of people who clicked “Helpful” under the review. This is the Steam equivalent of upvotes.</td>
+                <td>Found at the bottom: <em>“X people found this review helpful”</em></td>
+            </tr>
+            <tr>
+                <td><strong>Replies</strong></td>
+                <td><em>Optional:</em> The number of comments/replies that other users left on the review.</td>
+                <td>Appears as a small link: <em>View all X comments</em></td>
+            </tr>
+            <tr>
+                <td><strong>Recommendation</strong></td>
+                <td>Whether the reviewer marked the review as “Recommended” or “Not Recommended” when submitting it.</td>
+                <td>Appears as a tag/title near the top of the card.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>Example</h3>
+    <div class="example-box">
+        <div class="example-item"><span class="recommended">🟩 Recommended</span> <span class="annotation">← this is the "Recommendation"</span></div>
+        <div class="example-item">🕒 <strong>123.4 hrs on record</strong> <span class="annotation">← "Hours Played"</span></div>
+        <div class="example-item">🗓️ <strong>Posted: May 10, 2024</strong> <span class="annotation">← "Date"</span></div>
+        <div class="example-item">💬 <strong>Review text...</strong> <span class="annotation">← "Review"</span></div>
+        <div class="example-item">👍 <strong>56 people found this review helpful</strong> <span class="annotation">← "Helpful Votes"</span></div>
+        <div class="example-item">💭 <strong>View all 3 comments</strong> <span class="annotation">← "Replies"</span></div>
+    </div>
+</body>
+</html>
