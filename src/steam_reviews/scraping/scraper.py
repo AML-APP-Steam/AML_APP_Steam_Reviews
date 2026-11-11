@@ -21,7 +21,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from steam_reviews.schema import NO_HELPFUL_VOTES, Review
 from steam_reviews.scraping.parsers import parse_review_date, strip_hours_label, strip_review_date
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 CARD_SELECTOR = ".apphub_Card"
 TEXT_SELECTOR = ".apphub_CardTextContent"
@@ -135,7 +135,7 @@ def parse_card(card: WebElement, app_id: int) -> Review | None:
         hours = strip_hours_label(card.find_element(By.CSS_SELECTOR, HOURS_SELECTOR).text)
         recommendation = card.find_element(By.CSS_SELECTOR, RECOMMENDATION_SELECTOR).text.strip()
     except NoSuchElementException as exc:
-        logger.debug("App %s: skipping incomplete review card: %s", app_id, exc.msg)
+        _logger.debug("App %s: skipping incomplete review card: %s", app_id, exc.msg)
         return None
     if not text or review_date is None or not hours or not recommendation:
         return None
@@ -209,7 +209,7 @@ class ReviewScraper:
                 self._read_cards(app_id, reviews)
             except StaleElementReferenceException as exc:
                 stale_attempts += 1
-                logger.warning(
+                _logger.warning(
                     "App %s: stale page (%d/%d)", app_id, stale_attempts, settings.max_stale_retries
                 )
                 if stale_attempts >= settings.max_stale_retries:
@@ -219,11 +219,11 @@ class ReviewScraper:
             else:
                 stale_attempts = 0
                 stalled = stalled + 1 if len(reviews) == before else 0
-            logger.info(
+            _logger.info(
                 "App %s: %d/%d reviews collected", app_id, len(reviews), settings.target_reviews
             )
         if len(reviews) < settings.target_reviews:
-            logger.warning(
+            _logger.warning(
                 "App %s: stopped at %d/%d reviews after %d scrolls without new valid reviews",
                 app_id,
                 len(reviews),

@@ -24,7 +24,7 @@ docs:
 	uv run pdoc -d google steam_reviews
 
 docs-build:
-	uv run pdoc -d google steam_reviews -o build/docs
+	uv run pdoc -d google steam_reviews -o artifacts/docs
 
 scrape:
 	uv run steam-reviews scrape

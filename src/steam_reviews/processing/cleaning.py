@@ -9,7 +9,7 @@ import pandas as pd
 from steam_reviews.config import Game
 from steam_reviews.schema import RAW_TO_CLEAN_COLUMNS
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 _FIRST_NUMBER = re.compile(r"-?\d[\d,]*")
 _ISO_DATE_PREFIX = r"^\d{4}-\d{2}-\d{2}(?:$|[ T])"
@@ -184,8 +184,8 @@ def clean_reviews(raw: pd.DataFrame, games: Mapping[int, Game] | None = None) ->
         df.insert(1, "game", names.astype("string"))
         unknown_count = int(names.isna().sum())
         if unknown_count:
-            logger.warning("Game names are missing for %d reviews", unknown_count)
-    logger.info(
+            _logger.warning("Game names are missing for %d reviews", unknown_count)
+    _logger.info(
         "Cleaned reviews: input=%d, kept=%d, empty_text=%d, duplicates=%d, unknown_hours=%d",
         len(raw),
         len(df),

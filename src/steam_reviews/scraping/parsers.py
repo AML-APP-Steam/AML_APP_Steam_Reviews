@@ -4,7 +4,7 @@ import logging
 import re
 from datetime import date
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 _DATE_PATTERNS = (
     re.compile(r"(?P<month>[A-Za-z]+)\s+(?P<day>\d{1,2})(?:,?\s+(?P<year>\d{4}))?"),
@@ -55,7 +55,7 @@ def parse_review_date(raw: str, *, reference_date: date | None = None) -> date |
             return date(year, month, int(match["day"]))
         except ValueError:
             break
-    logger.debug("Unsupported review date: %r", raw)
+    _logger.debug("Unsupported review date: %r", raw)
     return None
 
 

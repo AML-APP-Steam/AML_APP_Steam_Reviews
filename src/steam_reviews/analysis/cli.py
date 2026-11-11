@@ -26,7 +26,7 @@ from steam_reviews.analysis.transformer_sentiment import (
 )
 from steam_reviews.io import read_processed
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
@@ -225,7 +225,7 @@ def _run_report(args: argparse.Namespace) -> int:
         min_word_freq=args.min_word_freq,
         top_n=args.top,
     )
-    logger.info(
+    _logger.info(
         "Analysed %s: %d reviews, %d tables, %d figures in %s",
         report.game,
         len(report.prepared.reviews),
@@ -252,7 +252,7 @@ def _run_preprocess(args: argparse.Namespace) -> int:
         min_word_freq=args.min_word_freq,
     )
     documents, metadata = save_documents(prepared, _target_dir(args, reviews))
-    logger.info(
+    _logger.info(
         "Wrote %d documents (%d vocabulary terms) to %s and %s",
         len(prepared.reviews),
         len(prepared.vocabulary),
@@ -280,7 +280,7 @@ def _run_sentiment(args: argparse.Namespace) -> int:
     scored = add_sentiment(prepared.reviews)
     path = save_table(scored, _target_dir(args, reviews) / "sentiment.csv")
     summary = sentiment_summary(scored)
-    logger.info("Wrote %s; mean compound score %.3f", path, summary["mean_score"])
+    _logger.info("Wrote %s; mean compound score %.3f", path, summary["mean_score"])
     return EXIT_SUCCESS
 
 
@@ -310,7 +310,7 @@ def _run_transformer_sentiment(args: argparse.Namespace) -> int:
     )
     path = save_table(scored, _target_dir(args, reviews) / "transformer_sentiment.csv")
     summary = transformer_sentiment_summary(scored)
-    logger.info(
+    _logger.info(
         "Wrote %s with %s; mean expected polarity %.3f",
         path,
         args.model,
@@ -344,7 +344,7 @@ def _run_frequencies(args: argparse.Namespace) -> int:
     }
     for name, table in tables.items():
         path = save_table(table, target / f"word_frequencies_{name}.csv")
-        logger.info("Wrote %s", path)
+        _logger.info("Wrote %s", path)
     return EXIT_SUCCESS
 
 
@@ -373,10 +373,10 @@ def _run_wordcloud(args: argparse.Namespace) -> int:
     }
     for name, (text, title) in corpora.items():
         if not text.strip():
-            logger.warning("Skipping empty %s word cloud", name)
+            _logger.warning("Skipping empty %s word cloud", name)
             continue
         path = save_figure(plot_wordcloud(text, title=title), target / f"wordcloud_{name}.png")
-        logger.info("Wrote %s", path)
+        _logger.info("Wrote %s", path)
     return EXIT_SUCCESS
 
 
@@ -392,13 +392,13 @@ def _run_games(args: argparse.Namespace) -> int:
     del args
     reviews = read_processed()
     if reviews.empty:
-        logger.error("No processed reviews found; run `steam-reviews scrape` and `clean` first")
+        _logger.error("No processed reviews found; run `steam-reviews scrape` and `clean` first")
         return EXIT_FAILURE
     if "game" not in reviews.columns:
         reviews["game"] = reviews["app_id"].astype(str)
     grouped = reviews.groupby(["app_id", "game"], dropna=False).size().reset_index(name="reviews")
     for row in grouped.sort_values(["game", "app_id"]).itertuples():
-        logger.info("%s (app %s): %d reviews", row.game, row.app_id, row.reviews)
+        _logger.info("%s (app %s): %d reviews", row.game, row.app_id, row.reviews)
     return EXIT_SUCCESS
 
 
@@ -415,6 +415,6 @@ def run(args: argparse.Namespace) -> int:
     try:
         return int(handler(args))
     except (KeyError, ValueError, OSError, RuntimeError) as exc:
-        logger.error("Analysis failed: %s", exc)
-        logger.debug("Analysis failure details", exc_info=True)
+        _logger.error("Analysis failed: %s", exc)
+        _logger.debug("Analysis failure details", exc_info=True)
         return EXIT_FAILURE

@@ -9,7 +9,7 @@ from steam_reviews.io import raw_path, write_raw_reviews
 from steam_reviews.scraping.driver import chrome_driver
 from steam_reviews.scraping.scraper import ReviewScraper, ScraperSettings, validate_app_id
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 def scrape_games(
@@ -54,8 +54,8 @@ def scrape_games(
     with chrome_driver(headless=headless) as driver:
         scraper = ReviewScraper(driver, parameters)
         for app_id, path in paths.items():
-            logger.info("App %s: starting scrape", app_id)
+            _logger.info("App %s: starting scrape", app_id)
             reviews = scraper.scrape(app_id)
             write_raw_reviews(path, reviews, overwrite=overwrite)
-            logger.info("App %s: saved %d reviews to %s", app_id, len(reviews), path)
+            _logger.info("App %s: saved %d reviews to %s", app_id, len(reviews), path)
     return paths

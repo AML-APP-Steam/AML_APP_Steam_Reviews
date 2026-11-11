@@ -10,15 +10,8 @@ __pycache__/
 .venv/
 .env
 
-# Generated API docs (`make docs-build`)
-build/
-
-# Tooling caches
-.ruff_cache/
-.mypy_cache/
-.pytest_cache/
-.coverage
-htmlcov/
+# Tool outputs: caches, coverage data and generated API docs (`make docs-build`)
+artifacts/
 
 # Jupyter
 .ipynb_checkpoints/
