@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 import nltk
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 REQUIRED_RESOURCES: dict[str, str] = {
     "tokenizers/punkt": "punkt",
@@ -31,7 +31,7 @@ def ensure_nltk_resources(downloader: Callable[[str], bool] = nltk.download) -> 
         try:
             nltk.data.find(resource)
         except LookupError:
-            logger.info("Downloading NLTK resource %s", package)
+            _logger.info("Downloading NLTK resource %s", package)
             if not downloader(package):
                 msg = f"Could not download the NLTK resource {package!r}"
                 raise RuntimeError(msg) from None

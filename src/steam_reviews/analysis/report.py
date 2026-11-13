@@ -41,7 +41,7 @@ from steam_reviews.analysis.text import (
 )
 from steam_reviews.config import PROCESSED_DIR
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,7 +85,7 @@ def _save_wordcloud(text: str, title: str, path: Path, figures: dict[str, Path])
         figures: Mapping updated with the saved path under the image stem.
     """
     if not text.strip():
-        logger.warning("Skipping word cloud %s because the corpus is empty", path.name)
+        _logger.warning("Skipping word cloud %s because the corpus is empty", path.name)
         return
     figures[path.stem] = save_figure(plot_wordcloud(text, title=title), path)
 
@@ -105,7 +105,7 @@ def _save_period_figure(
     try:
         figure = figure_factory()
     except (ValueError, RuntimeError, FloatingPointError) as exc:
-        logger.warning("Skipping figure %s: %s", path.name, exc)
+        _logger.warning("Skipping figure %s: %s", path.name, exc)
         return
     figures[path.stem] = save_figure(figure, path)
 

@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -35,4 +35,4 @@ def chrome_driver(*, headless: bool = False) -> Generator[webdriver.Chrome, None
         try:
             driver.quit()
         except WebDriverException:
-            logger.warning("Chrome could not close cleanly", exc_info=True)
+            _logger.warning("Chrome could not close cleanly", exc_info=True)

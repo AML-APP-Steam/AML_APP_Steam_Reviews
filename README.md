@@ -300,7 +300,7 @@ Generated from docstrings (Google style) and type hints with [pdoc](https://pdoc
 
 ```bash
 make docs         # live preview in the browser
-make docs-build   # static HTML in build/docs/ (gitignored)
+make docs-build   # static HTML in artifacts/docs/ (gitignored)
 ```
 
 Every public module, class, function and method needs a docstring; ruff's `D` rules enforce it.

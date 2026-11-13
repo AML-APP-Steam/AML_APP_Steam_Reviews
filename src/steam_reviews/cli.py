@@ -13,7 +13,7 @@ from steam_reviews.processing.cleaning import clean_reviews
 from steam_reviews.scraping.scraper import ScraperSettings, ScrapingError
 from steam_reviews.scraping.service import scrape_games
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
@@ -133,8 +133,8 @@ def _scrape(args: argparse.Namespace) -> int:
         app_ids: list[int] = args.app_ids or list(load_games())
         scrape_games(app_ids, settings=settings, headless=args.headless, overwrite=args.overwrite)
     except (ScrapingError, WebDriverException, OSError) as exc:
-        logger.error("Scraping failed: %s", exc)
-        logger.debug("Scraping failure details", exc_info=True)
+        _logger.error("Scraping failed: %s", exc)
+        _logger.debug("Scraping failure details", exc_info=True)
         return EXIT_FAILURE
     return EXIT_SUCCESS
 
@@ -148,18 +148,18 @@ def _clean() -> int:
     try:
         raw = read_raw_reviews()
         if raw.empty:
-            logger.error("No raw reviews found; run `steam-reviews scrape` first")
+            _logger.error("No raw reviews found; run `steam-reviews scrape` first")
             return EXIT_FAILURE
         cleaned = clean_reviews(raw, load_games())
         if cleaned.empty:
-            logger.error("No reviews remain after cleaning; existing processed data was preserved")
+            _logger.error("No reviews remain after cleaning; existing processed data was preserved")
             return EXIT_FAILURE
         path = write_processed(cleaned)
     except (ValueError, OSError) as exc:
-        logger.error("Cleaning failed: %s", exc)
-        logger.debug("Cleaning failure details", exc_info=True)
+        _logger.error("Cleaning failed: %s", exc)
+        _logger.debug("Cleaning failure details", exc_info=True)
         return EXIT_FAILURE
-    logger.info("Saved cleaned reviews to %s", path)
+    _logger.info("Saved cleaned reviews to %s", path)
     return EXIT_SUCCESS
 
 
