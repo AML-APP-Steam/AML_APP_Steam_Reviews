@@ -11,7 +11,7 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=500]
-        exclude: 'uv\.lock'
+        exclude: '^(notebooks/|data/|artifacts/|uv\.lock)'
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
