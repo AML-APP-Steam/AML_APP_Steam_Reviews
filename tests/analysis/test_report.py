@@ -5,8 +5,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from steam_reviews.analysis.report import run_analysis
-from steam_reviews.io import write_processed
+from steam_review_analysis.analysis.report import run_analysis
+from steam_review_analysis.io import write_processed
 
 
 def test_run_analysis_writes_tables_without_plots(processed_dir: Path, tmp_path: Path) -> None:
@@ -83,3 +83,15 @@ def test_run_analysis_rejects_empty_preprocessed_corpus(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="No reviews remain"):
         run_analysis("Alpha", "2024-01-01", processed_dir=tmp_path, save_plots=False)
+
+
+def test_run_analysis_defaults_output_beside_processed_data(
+    processed_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Write artifacts under `<processed_dir>/analysis/<game>` when no output is given."""
+    monkeypatch.chdir(tmp_path)
+
+    report = run_analysis("Alpha", "2024-01-01", processed_dir=processed_dir, save_plots=False)
+
+    assert report.output_dir == processed_dir / "analysis" / "alpha"
+    assert (report.output_dir / "summary.json").is_file()

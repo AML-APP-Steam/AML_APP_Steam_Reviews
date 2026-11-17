@@ -4271,30 +4271,49 @@ wheels = [
 ]
 
 [[package]]
-name = "steam-reviews"
+name = "steam-review-analysis"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "jupyter" },
+    { name = "pandas" },
+]
+
+[package.optional-dependencies]
+all = [
+    { name = "laya" },
+    { name = "matplotlib" },
+    { name = "nano-jev" },
+    { name = "nltk" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "optimum-quanto" },
+    { name = "scikit-learn" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "selenium" },
+    { name = "torch" },
+    { name = "transformers" },
+    { name = "wordcloud" },
+]
+analysis = [
     { name = "matplotlib" },
     { name = "nltk" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "p2j" },
-    { name = "pandas" },
     { name = "scikit-learn" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "seaborn" },
-    { name = "selenium" },
     { name = "wordcloud" },
 ]
-
-[package.optional-dependencies]
+scrape = [
+    { name = "selenium" },
+]
 sentiment = [
     { name = "laya" },
     { name = "nano-jev" },
     { name = "optimum-quanto" },
+    { name = "torch" },
+    { name = "transformers" },
 ]
 
 [package.dev-dependencies]
@@ -4308,29 +4327,33 @@ dev = [
     { name = "ruff" },
     { name = "scipy-stubs", version = "1.17.1.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "scipy-stubs", version = "1.18.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "steam-review-analysis", extra = ["analysis", "scrape"] },
 ]
 notebooks = [
+    { name = "jupyter" },
     { name = "jupyterlab" },
+    { name = "p2j" },
+    { name = "seaborn" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "jupyter", specifier = ">=1.1.1" },
     { name = "laya", marker = "extra == 'sentiment'", specifier = ">=0.4.15" },
-    { name = "matplotlib", specifier = ">=3.8" },
+    { name = "matplotlib", marker = "extra == 'analysis'", specifier = ">=3.9" },
     { name = "nano-jev", marker = "extra == 'sentiment'", specifier = ">=1.0.0" },
-    { name = "nltk", specifier = ">=3.9" },
-    { name = "numpy", specifier = ">=1.26" },
+    { name = "nltk", marker = "extra == 'analysis'", specifier = ">=3.9" },
+    { name = "numpy", marker = "extra == 'analysis'", specifier = ">=1.26" },
     { name = "optimum-quanto", marker = "extra == 'sentiment'", specifier = ">=0.2.7" },
-    { name = "p2j", specifier = ">=1.3.2" },
     { name = "pandas", specifier = ">=2.2" },
-    { name = "scikit-learn", specifier = ">=1.9.1" },
-    { name = "scipy", specifier = ">=1.11" },
-    { name = "seaborn", specifier = ">=0.13.2" },
-    { name = "selenium", specifier = ">=4.20" },
-    { name = "wordcloud", specifier = ">=1.9" },
+    { name = "scikit-learn", marker = "extra == 'analysis'", specifier = ">=1.9.1" },
+    { name = "scipy", marker = "extra == 'analysis'", specifier = ">=1.11" },
+    { name = "selenium", marker = "extra == 'scrape'", specifier = ">=4.20" },
+    { name = "steam-review-analysis", extras = ["scrape", "analysis", "sentiment"], marker = "extra == 'all'" },
+    { name = "torch", marker = "extra == 'sentiment'", specifier = ">=2.4" },
+    { name = "transformers", marker = "extra == 'sentiment'", specifier = ">=4.44" },
+    { name = "wordcloud", marker = "extra == 'analysis'", specifier = ">=1.9.3" },
 ]
-provides-extras = ["sentiment"]
+provides-extras = ["scrape", "analysis", "sentiment", "all"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -4342,8 +4365,14 @@ dev = [
     { name = "pytest-cov", specifier = ">=5.0" },
     { name = "ruff", specifier = ">=0.6" },
     { name = "scipy-stubs", specifier = ">=1.14" },
+    { name = "steam-review-analysis", extras = ["scrape", "analysis"] },
 ]
-notebooks = [{ name = "jupyterlab", specifier = ">=4.0" }]
+notebooks = [
+    { name = "jupyter", specifier = ">=1.1.1" },
+    { name = "jupyterlab", specifier = ">=4.0" },
+    { name = "p2j", specifier = ">=1.3.2" },
+    { name = "seaborn", specifier = ">=0.13.2" },
+]
 
 [[package]]
 name = "sympy"

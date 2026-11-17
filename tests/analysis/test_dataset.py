@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from steam_reviews.analysis.dataset import (
+from steam_review_analysis.analysis.dataset import (
     add_period,
     add_year,
     default_output_dir,

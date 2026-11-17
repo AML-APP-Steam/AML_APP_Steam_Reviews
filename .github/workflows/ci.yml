@@ -6,11 +6,13 @@ on:
   pull_request:
 
 jobs:
+  # Lint, type-check and test with the locked dependency versions on every supported Python.
   quality:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.11", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -19,3 +21,61 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run mypy
       - run: uv run pytest
+
+  # Test against the OLDEST versions allowed by pyproject.toml, so the lower bounds stay honest.
+  lowest-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv venv --python 3.11
+      - run: >-
+          uv pip install --resolution lowest-direct
+          ".[scrape,analysis]" "pytest>=8.0" "pytest-cov>=5.0"
+      - run: .venv/bin/python -m pytest --no-cov
+
+  # Build the wheel and sdist, then install the wheel WITHOUT extras in a clean environment
+  # and run it outside the repository, the way a user would after `pip install`.
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv build
+      - run: uvx twine check --strict dist/*
+      - name: Install the core package only
+        run: |
+          uv venv --python 3.11 "$RUNNER_TEMP/core"
+          uv pip install --python "$RUNNER_TEMP/core/bin/python" dist/*.whl
+      - name: Smoke-test the core install outside the repository
+        working-directory: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          cli="$RUNNER_TEMP/core/bin/steam-review-analysis"
+          "$cli" --version
+          "$cli" --help > /dev/null
+          "$cli" analyse --help > /dev/null
+          # Optional dependencies must not be installed or imported by the core.
+          "$RUNNER_TEMP/core/bin/python" - <<'EOF'
+          import importlib.util, sys
+          import steam_review_analysis
+          from steam_review_analysis import cli
+          cli.build_parser()
+          for name in ("selenium", "nltk", "scipy", "matplotlib", "sklearn"):
+              assert importlib.util.find_spec(name) is None, f"{name} leaked into the core install"
+          print("core import OK:", steam_review_analysis.__version__)
+          EOF
+          # Cleaning works with only pandas, using ./data in the working directory.
+          mkdir -p data/raw
+          printf 'Game,Date,Review,Hours Played,Recommendation,Helpful Votes\n7,2024-05-21,Great game,1.0,Recommended,0\n' > data/raw/7_reviews.csv
+          "$cli" clean
+          test -s data/processed/reviews.csv
+          # Commands needing extras fail cleanly with an install hint.
+          if "$cli" analyse games 2> err.txt; then exit 1; fi
+          grep -q 'steam-review-analysis\[analysis\]' err.txt
+          if "$cli" scrape 42 2> err.txt; then exit 1; fi
+          grep -q 'steam-review-analysis\[scrape\]' err.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/

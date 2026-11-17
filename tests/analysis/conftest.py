@@ -5,7 +5,14 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from steam_reviews.io import write_processed
+from steam_review_analysis.analysis.nltk_resources import ensure_nltk_resources
+from steam_review_analysis.io import write_processed
+
+
+@pytest.fixture(scope="session", autouse=True)
+def nltk_corpora() -> None:
+    """Install the NLTK corpora once per session; library calls never download them."""
+    ensure_nltk_resources(download=True)
 
 
 def sample_reviews() -> pd.DataFrame:

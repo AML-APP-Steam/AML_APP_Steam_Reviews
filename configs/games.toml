@@ -1,5 +1,5 @@
 # Games the scraper knows about.
-# `steam-reviews scrape` with no arguments scrapes all of them.
+# `steam-review-analysis scrape` with no arguments scrapes all of them.
 # The app id is the number in https://store.steampowered.com/app/<app_id>/
 
 [[games]]

@@ -7,9 +7,9 @@ import pytest
 from selenium.common.exceptions import StaleElementReferenceException, WebDriverException
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from steam_reviews.schema import Review
-from steam_reviews.scraping import scraper
-from steam_reviews.scraping.scraper import ReviewScraper, ScraperSettings, ScrapingError
+from steam_review_analysis.schema import Review
+from steam_review_analysis.scraping import scraper
+from steam_review_analysis.scraping.scraper import ReviewScraper, ScraperSettings, ScrapingError
 
 
 class FakeBody:

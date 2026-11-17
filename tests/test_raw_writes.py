@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from steam_reviews.io import read_raw_reviews, write_raw_reviews
-from steam_reviews.schema import Review
+from steam_review_analysis.io import read_raw_reviews, write_raw_reviews
+from steam_review_analysis.schema import Review
 
 
 @pytest.fixture

@@ -4,7 +4,11 @@ from datetime import date
 
 import pytest
 
-from steam_reviews.scraping.parsers import parse_review_date, strip_hours_label, strip_review_date
+from steam_review_analysis.scraping.parsers import (
+    parse_review_date,
+    strip_hours_label,
+    strip_review_date,
+)
 
 
 @pytest.mark.parametrize(

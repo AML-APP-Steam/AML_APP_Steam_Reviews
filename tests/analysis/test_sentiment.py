@@ -5,7 +5,7 @@ import math
 import pandas as pd
 import pytest
 
-from steam_reviews.analysis.sentiment import (
+from steam_review_analysis.analysis.sentiment import (
     add_sentiment,
     fit_sentiment_distributions,
     sentiment_category,

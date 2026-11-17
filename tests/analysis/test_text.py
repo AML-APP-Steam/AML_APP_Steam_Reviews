@@ -5,7 +5,7 @@ from types import MappingProxyType
 import pandas as pd
 import pytest
 
-from steam_reviews.analysis.text import (
+from steam_review_analysis.analysis.text import (
     PreprocessingConfig,
     build_vocabulary,
     filter_tokens,
