@@ -1,6 +1,7 @@
 """Persist analysis tables and prepared documents beside the processed dataset."""
 
 import json
+import math
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -50,8 +51,29 @@ def save_documents(prepared: PreparedDocuments, output_dir: Path) -> tuple[Path,
     return documents_path, metadata_path
 
 
+def _finite_or_none(value: object) -> object:
+    """Replace NaN and infinite floats with None, recursing into mappings and sequences.
+
+    Args:
+        value: JSON-like value, possibly nested.
+
+    Returns:
+        The value with every non-finite float replaced by None.
+    """
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, Mapping):
+        return {key: _finite_or_none(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_finite_or_none(item) for item in value]
+    return value
+
+
 def save_summary(summary: Mapping[str, object], path: Path) -> Path:
     """Write a JSON summary of counts and aggregated statistics.
+
+    Non-finite numbers, such as the NaN statistics of an empty before/after period, are
+    written as `null` so the file stays valid standard JSON.
 
     Args:
         summary: JSON-serializable mapping.
@@ -59,8 +81,11 @@ def save_summary(summary: Mapping[str, object], path: Path) -> Path:
 
     Returns:
         The destination path.
+
+    Raises:
+        ValueError: The summary contains a value JSON cannot represent.
     """
-    text = json.dumps(summary, indent=2, sort_keys=True) + "\n"
+    text = json.dumps(_finite_or_none(summary), indent=2, sort_keys=True, allow_nan=False) + "\n"
     with atomic_path(path) as temporary:
         temporary.write_text(text, encoding="utf-8")
     return path

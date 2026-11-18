@@ -40,11 +40,16 @@ The report writes word frequencies, sentiment scores, statistics, a JSON summary
 (see below) or its app id. Run `steam-review-analysis --help`, or `--help` after
 any command, for all options; `steam-review-analysis --version` prints the version.
 
-The same steps from Python:
+The same steps from Python. Unlike the `analyse` commands, library functions never download
+the NLTK corpora themselves, so install them once first (or run
+`steam-review-analysis download-nltk`):
 
 ```python
 import steam_review_analysis as sra
+from steam_review_analysis.analysis.nltk_resources import ensure_nltk_resources
 from steam_review_analysis.analysis.report import run_analysis
+
+ensure_nltk_resources(download=True)  # one-off; a no-op once the corpora are installed
 
 cleaned = sra.clean_reviews(sra.read_raw_reviews())
 sra.write_processed(cleaned)
@@ -52,6 +57,10 @@ sra.write_processed(cleaned)
 report = run_analysis(105600, "2024-01-01")
 print(report.output_dir, sorted(report.tables))
 ```
+
+More worked examples will live in the Jupyter notebooks in [`notebooks/`](notebooks/). They
+are not part of the installed package, and for now they hold the original per-game exploratory
+analysis rather than calls to this package.
 
 ## Commands
 

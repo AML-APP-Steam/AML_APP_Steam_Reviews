@@ -23,7 +23,7 @@ help: ## Show this list of commands and what each one does
 # The dev group pulls in the `scrape` and `analysis` extras; add the heavy
 # transformer models with `uv sync --extra sentiment`.
 install: ## Install dependencies with uv and set up pre-commit hooks
-	uv sync
+	uv sync --locked
 	uv run pre-commit install
 
 # --- Code quality ------------------------------------------------------------

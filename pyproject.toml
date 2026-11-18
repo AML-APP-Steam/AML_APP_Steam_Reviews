@@ -86,11 +86,13 @@ notebooks = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/steam_review_analysis"]
 
-# Keep the source archive to code, tests and docs: no notebooks, scraped data or configs.
+# Keep the source archive to code, tests, docs and the default configs the tests validate:
+# no notebooks or scraped data.
 [tool.hatch.build.targets.sdist]
 include = [
     "src/steam_review_analysis",
     "tests",
+    "configs/*.toml",
     "docs/*.md",
     "README.md",
     "CHANGELOG.md",

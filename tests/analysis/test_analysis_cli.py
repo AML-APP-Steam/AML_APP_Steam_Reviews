@@ -11,6 +11,8 @@ import pytest
 from steam_review_analysis import cli
 from steam_review_analysis.analysis import cli as analysis_cli
 
+pytestmark = pytest.mark.usefixtures("no_nltk_download")
+
 
 def test_analyse_report_arguments_parse() -> None:
     """Parse the report subcommand with its game, cutoff and limit options."""
@@ -90,9 +92,7 @@ def test_analyse_preset_without_presets_file_fails(
     assert cli.main(["analyse", "report", "--game", "1", "--preset", "Shooter"]) == 1
 
 
-def test_analyse_uses_data_dir_for_inputs_and_outputs(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_analyse_uses_data_dir_for_inputs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Resolve processed data and default artifact paths from `--data-dir`."""
     loader = Mock(side_effect=ValueError("stop after resolving paths"))
     monkeypatch.setattr(analysis_cli, "load_reviews", loader)

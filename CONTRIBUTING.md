@@ -101,9 +101,3 @@ single source (`steam_review_analysis.__version__` reads the installed metadata)
 Pushing the tag runs `.github/workflows/release.yml`: it checks that the tag matches the
 version, runs the tests, builds and checks the distributions, publishes them to PyPI and
 creates a GitHub release.
-
-**One-time PyPI setup (trusted publishing, no API token):** on pypi.org, open *Your account →
-Publishing → Add a new pending publisher* and enter project `steam-review-analysis`, owner
-`G-a-b-b-s`, repository `AML_APP_Steam_Reviews`, workflow `release.yml`, environment `pypi`.
-Then create an environment named `pypi` in the GitHub repository settings (optionally with
-required reviewers, so every release needs an approval).

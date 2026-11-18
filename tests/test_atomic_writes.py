@@ -43,17 +43,25 @@ def test_write_processed_preserves_dataset_on_interrupted_write(
     original = pd.DataFrame({"app_id": [1], "date": ["2024-01-01"], "text": ["kept"]})
     write_processed(original, tmp_path)
 
+    targets: list[Path] = []
+
     def interrupted(self: pd.DataFrame, *args: object, **kwargs: object) -> None:
-        """Simulate Ctrl+C in the middle of writing the CSV.
+        """Simulate Ctrl+C after part of the CSV has reached the disk.
+
+        Writing truncated content first matters: a non-atomic writer would pass this test
+        if the fake raised before touching the file.
 
         Args:
             self: Frame being written.
-            *args: Ignored positional arguments.
+            *args: Destination path first; the rest is ignored.
             **kwargs: Ignored keyword arguments.
 
         Raises:
-            KeyboardInterrupt: Always.
+            KeyboardInterrupt: Always, after the partial write.
         """
+        target = Path(str(args[0]))
+        targets.append(target)
+        target.write_text("app_id\n2", encoding="utf-8")
         raise KeyboardInterrupt
 
     monkeypatch.setattr(pd.DataFrame, "to_csv", interrupted)
@@ -61,4 +69,6 @@ def test_write_processed_preserves_dataset_on_interrupted_write(
         write_processed(pd.DataFrame({"app_id": [2]}), tmp_path)
     monkeypatch.undo()
 
+    assert targets, "write_processed never reached to_csv"
+    assert not targets[0].exists(), "the partially written file was left behind"
     assert read_processed(tmp_path)["text"].tolist() == ["kept"]

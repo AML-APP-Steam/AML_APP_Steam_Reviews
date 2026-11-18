@@ -35,12 +35,12 @@ One file for all games, written by `clean`. Read it with
 Written by the `analyse` commands; `report` writes all of them except `transformer_sentiment.csv`,
 which comes from `analyse transformer-sentiment`.
 
-| File | Contents |
-| --- | --- |
-| `documents.csv`, `metadata.csv` | Preprocessed review documents and their metadata (e.g. for topic models) |
-| `word_frequencies_{overall,before,after}.csv` | Most frequent words overall and before/after the cutoff |
-| `sentiment.csv` | Reviews with VADER scores, sentiment category, year and period |
-| `transformer_sentiment.csv` | Reviews with transformer scores and class probabilities |
-| `correlations.csv` | Pearson correlations of sentiment with hours played and helpful votes, before and after the cutoff |
-| `summary.json` | Counts and sentiment summaries overall and per period |
+| File | Contents                                                                                                                                 |
+| --- |------------------------------------------------------------------------------------------------------------------------------------------|
+| `documents.csv`, `metadata.csv` | Preprocessed review documents and their metadata (e.g. for topic models)                                                                 |
+| `word_frequencies_{overall,before,after}.csv` | Most frequent words overall and before/after the cutoff                                                                                  |
+| `sentiment.csv` | Reviews with VADER scores and sentiment category                                                                                         |
+| `transformer_sentiment.csv` | Reviews with transformer scores and class probabilities                                                                                  |
+| `correlations.csv` | Pearson correlations of sentiment with hours played and helpful votes, before and after the cutoff                                       |
+| `summary.json` | Counts and sentiment summaries overall and per period                                                                                    |
 | `*.png` | Word clouds (overall, per period, per year), word-frequency charts, sentiment distributions and fits, yearly trends and engagement plots |

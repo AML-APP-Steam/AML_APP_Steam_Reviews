@@ -16,6 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+      - name: Cache NLTK corpora
+        uses: actions/cache@v4
+        with:
+          path: ~/nltk_data
+          key: nltk-${{ hashFiles('src/steam_review_analysis/analysis/nltk_resources.py') }}
       - run: uv sync --locked --python ${{ matrix.python-version }} # Installs project's dependencies exactly as specified in lockfile uv.lock
       - run: uv run ruff check .
       - run: uv run ruff format --check .
@@ -28,9 +33,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+      - name: Cache NLTK corpora
+        uses: actions/cache@v4
+        with:
+          path: ~/nltk_data
+          key: nltk-${{ hashFiles('src/steam_review_analysis/analysis/nltk_resources.py') }}
       - run: uv venv --python 3.11
       - run: >-
-          uv pip install --resolution lowest-direct
+          uv pip install --resolution lowest
           ".[scrape,analysis]" "pytest>=8.0" "pytest-cov>=5.0"
       - run: .venv/bin/python -m pytest --no-cov
 

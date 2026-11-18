@@ -29,6 +29,7 @@ def test_sentiment_category_uses_vader_thresholds(score: float, expected: str) -
     assert sentiment_category(score) == expected
 
 
+@pytest.mark.usefixtures("nltk_corpora")
 def test_sentiment_scores_follow_text_polarity() -> None:
     """Assign a positive compound score to praise and a negative score to criticism."""
     positive, negative = sentiment_scores(["I love this great game", "I hate this bad game"])
@@ -37,6 +38,7 @@ def test_sentiment_scores_follow_text_polarity() -> None:
     assert negative < 0
 
 
+@pytest.mark.usefixtures("nltk_corpora")
 def test_add_sentiment_preserves_input_and_adds_columns(sample_frame: pd.DataFrame) -> None:
     """Score processed reviews without changing the caller's frame."""
     original = sample_frame.copy(deep=True)

@@ -386,6 +386,7 @@ def test_transformer_sentiment_arguments_parse() -> None:
     assert args.device == "cpu"
 
 
+@pytest.mark.usefixtures("no_nltk_download")
 def test_transformer_sentiment_cli_writes_table(
     monkeypatch: pytest.MonkeyPatch,
     sample_frame: pd.DataFrame,
