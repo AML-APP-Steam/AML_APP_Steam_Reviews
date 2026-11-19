@@ -1,12 +1,15 @@
 """Test the end-to-end analysis report workflow."""
 
+import json
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
-from steam_reviews.analysis.report import run_analysis
-from steam_reviews.io import write_processed
+from steam_review_analysis.analysis.report import run_analysis
+from steam_review_analysis.io import write_processed
+
+pytestmark = pytest.mark.usefixtures("nltk_corpora")
 
 
 def test_run_analysis_writes_tables_without_plots(processed_dir: Path, tmp_path: Path) -> None:
@@ -83,3 +86,28 @@ def test_run_analysis_rejects_empty_preprocessed_corpus(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="No reviews remain"):
         run_analysis("Alpha", "2024-01-01", processed_dir=tmp_path, save_plots=False)
+
+
+def test_run_analysis_defaults_output_beside_processed_data(
+    processed_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Write artifacts under `<processed_dir>/analysis/<game>` when no output is given."""
+    monkeypatch.chdir(tmp_path)
+
+    report = run_analysis("Alpha", "2024-01-01", processed_dir=processed_dir, save_plots=False)
+
+    assert report.output_dir == processed_dir / "analysis" / "alpha"
+    assert (report.output_dir / "summary.json").is_file()
+
+
+def test_run_analysis_writes_null_for_empty_period(processed_dir: Path, tmp_path: Path) -> None:
+    """Write empty-period statistics as JSON null rather than the non-standard NaN."""
+    report = run_analysis(
+        "Alpha", "2030-01-01", processed_dir=processed_dir, output_dir=tmp_path, save_plots=False
+    )
+
+    text = (report.output_dir / "summary.json").read_text(encoding="utf-8")
+    assert "NaN" not in text
+    summary = json.loads(text)
+    assert summary["after"]["count"] == 0
+    assert summary["after"]["mean_score"] is None

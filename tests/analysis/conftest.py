@@ -5,7 +5,31 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from steam_reviews.io import write_processed
+from steam_review_analysis.analysis import cli as analysis_cli
+from steam_review_analysis.analysis.nltk_resources import ensure_nltk_resources
+from steam_review_analysis.io import write_processed
+
+
+@pytest.fixture(scope="session")
+def nltk_corpora() -> None:
+    """Install the NLTK corpora once per session for tests that run real NLTK code.
+
+    Not autouse: tests that never touch NLTK must not depend on a network download.
+    Request it with `@pytest.mark.usefixtures("nltk_corpora")`.
+    """
+    ensure_nltk_resources(download=True)
+
+
+@pytest.fixture
+def no_nltk_download(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stop `analyse` dispatch from checking or downloading NLTK corpora.
+
+    For CLI tests whose NLTK-backed workflow is replaced by a mock.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
+    monkeypatch.setattr(analysis_cli, "ensure_nltk_resources", lambda **_: None)
 
 
 def sample_reviews() -> pd.DataFrame:

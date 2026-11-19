@@ -9,7 +9,7 @@ import pytest
 from matplotlib.figure import Figure
 from scipy import stats
 
-from steam_reviews.analysis.plotting import (
+from steam_review_analysis.analysis.plotting import (
     plot_boxplot,
     plot_distribution_fits,
     plot_engagement_boxplot,
@@ -22,7 +22,7 @@ from steam_reviews.analysis.plotting import (
     plot_yearly_sentiment,
     save_figure,
 )
-from steam_reviews.analysis.sentiment import fit_sentiment_distributions
+from steam_review_analysis.analysis.sentiment import fit_sentiment_distributions
 
 plt.switch_backend("Agg")
 

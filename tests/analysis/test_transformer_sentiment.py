@@ -8,10 +8,10 @@ from unittest.mock import Mock
 import pandas as pd
 import pytest
 
-from steam_reviews import cli
-from steam_reviews.analysis import cli as analysis_cli
-from steam_reviews.analysis import transformer_sentiment
-from steam_reviews.analysis.transformer_sentiment import (
+from steam_review_analysis import cli
+from steam_review_analysis.analysis import cli as analysis_cli
+from steam_review_analysis.analysis import transformer_sentiment
+from steam_review_analysis.analysis.transformer_sentiment import (
     DEFAULT_MODEL,
     MODEL_SPECS,
     SENTIMENT_LABELS,
@@ -359,7 +359,7 @@ def test_missing_optional_dependency_reports_install_hint(
         Mock(side_effect=ImportError("missing")),
     )
 
-    with pytest.raises(RuntimeError, match="uv sync --extra sentiment"):
+    with pytest.raises(RuntimeError, match=r"steam-review-analysis\[sentiment\]"):
         transformer_sentiment._load_backend(MODEL_SPECS["nano-jev"], None)
 
 
@@ -386,6 +386,7 @@ def test_transformer_sentiment_arguments_parse() -> None:
     assert args.device == "cpu"
 
 
+@pytest.mark.usefixtures("no_nltk_download")
 def test_transformer_sentiment_cli_writes_table(
     monkeypatch: pytest.MonkeyPatch,
     sample_frame: pd.DataFrame,

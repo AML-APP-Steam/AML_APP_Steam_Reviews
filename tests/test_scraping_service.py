@@ -1,7 +1,6 @@
 """Test the public scraping workflow and CLI against a simulated Chrome session."""
 
 from datetime import date
-from functools import partial
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -10,11 +9,11 @@ from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 
-from steam_reviews import cli
-from steam_reviews.io import read_raw_reviews
-from steam_reviews.schema import Review
-from steam_reviews.scraping import driver, scraper, service
-from steam_reviews.scraping.scraper import ScraperSettings, ScrapingError
+from steam_review_analysis import cli
+from steam_review_analysis.io import read_raw_reviews
+from steam_review_analysis.schema import Review
+from steam_review_analysis.scraping import driver, scraper, service
+from steam_review_analysis.scraping.scraper import ScraperSettings, ScrapingError
 
 
 @pytest.fixture
@@ -80,17 +79,17 @@ def test_existing_file_fails_before_browser_start(
 def test_cli_browser_failure_preserves_csv_and_reports_failure(
     tmp_path: Path,
     browser: Mock,
-    monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     failure_stage: str,
 ) -> None:
     """Log browser failures, return exit code 1, and preserve the previous CSV."""
-    path = tmp_path / "42_reviews.csv"
+    path = tmp_path / "raw" / "42_reviews.csv"
+    path.parent.mkdir()
     path.write_bytes(b"existing dataset")
     getattr(browser, failure_stage).side_effect = WebDriverException("browser disconnected")
-    monkeypatch.setattr(cli, "scrape_games", partial(service.scrape_games, raw_dir=tmp_path))
 
-    assert cli.main(["scrape", "42", "--overwrite", "--scroll-pause", "0"]) == 1
+    data_dir = ["--data-dir", str(tmp_path)]
+    assert cli.main([*data_dir, "scrape", "42", "--overwrite", "--scroll-pause", "0"]) == 1
     assert "Scraping failed" in caplog.text
     assert path.read_bytes() == b"existing dataset"
     browser.quit.assert_called_once()
@@ -158,7 +157,6 @@ def test_cli_reports_browser_startup_failure(
     """Report Chrome startup errors through logging and exit code 1 without writing data."""
     factory = Mock(side_effect=WebDriverException("Chrome unavailable"))
     monkeypatch.setattr(driver.webdriver, "Chrome", factory)
-    monkeypatch.setattr(cli, "scrape_games", partial(service.scrape_games, raw_dir=tmp_path))
-    assert cli.main(["scrape", "42"]) == 1
+    assert cli.main(["--data-dir", str(tmp_path), "scrape", "42"]) == 1
     assert "Chrome unavailable" in caplog.text
     assert list(tmp_path.iterdir()) == []

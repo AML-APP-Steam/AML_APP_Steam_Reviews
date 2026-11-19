@@ -3,8 +3,8 @@
 import pandas as pd
 import pytest
 
-from steam_reviews.analysis.dataset import add_year
-from steam_reviews.analysis.statistics import (
+from steam_review_analysis.analysis.dataset import add_year
+from steam_review_analysis.analysis.statistics import (
     engagement_split,
     pearson_correlations,
     yearly_mean,

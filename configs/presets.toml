@@ -1,0 +1,62 @@
+# Analysis presets used by `steam-review-analysis analyse ... --preset <NAME>`.
+# Each preset sets the default before/after cutoff and the game-specific
+# text-preprocessing rules (see steam_review_analysis.analysis.text.PreprocessingConfig).
+#
+# Keys per preset:
+#   app_id             Steam app id (informational)
+#   cutoff             default before/after boundary date (ISO format)
+#   preserve_keywords  tokens kept even if they are stopwords
+#   replacements       lemmatized-token replacements, e.g. cheater -> cheat
+#   extra_stopwords    optional; replaces the default extra stopword list
+#   min_word_length    optional; shortest token kept (default 2)
+
+[presets.Counter_Strike]
+app_id = 730
+cutoff = "2023-09-29"
+preserve_keywords = ["cs", "vac", "c4", "mm", "5v5", "1v1"]
+
+[presets.Counter_Strike.replacements]
+cheating = "cheat"
+cheater = "cheat"
+cheated = "cheat"
+csgo = "cs"
+cs2 = "cs"
+go = "cs"
+
+[presets.PUBG]
+app_id = 578080
+cutoff = "2022-03-23"
+preserve_keywords = ["pubg", "fps", "fpp", "tpp", "mm", "solo", "squad"]
+
+[presets.PUBG.replacements]
+cheating = "cheat"
+cheater = "cheat"
+cheated = "cheat"
+hacker = "cheat"
+hack = "cheat"
+aimbot = "cheat"
+wallhack = "cheat"
+battlegrounds = "pubg"
+
+[presets.SIMS]
+app_id = 1222670
+cutoff = "2022-10-18"
+preserve_keywords = ["sims", "dlc", "woohoo", "mod", "mods", "buildmode", "livemode", "cas"]
+
+[presets.SIMS.replacements]
+cheating = "cheat"
+cheater = "cheat"
+cheated = "cheat"
+build = "buildmode"
+live = "livemode"
+createasim = "cas"
+sim = "sims"
+babies = "baby"
+houses = "house"
+families = "family"
+expansion = "dlc"
+expansions = "dlc"
+pack = "dlc"
+packs = "dlc"
+modding = "mod"
+dlcs = "dlc"

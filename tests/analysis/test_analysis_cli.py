@@ -8,8 +8,10 @@ from unittest.mock import Mock
 import pandas as pd
 import pytest
 
-from steam_reviews import cli
-from steam_reviews.analysis import cli as analysis_cli
+from steam_review_analysis import cli
+from steam_review_analysis.analysis import cli as analysis_cli
+
+pytestmark = pytest.mark.usefixtures("no_nltk_download")
 
 
 def test_analyse_report_arguments_parse() -> None:
@@ -26,13 +28,78 @@ def test_analyse_report_arguments_parse() -> None:
     assert args.min_word_freq == 2
 
 
-def test_analyse_preset_supplies_default_cutoff() -> None:
+PRESETS_TOML = """
+[presets.Shooter]
+app_id = 730
+cutoff = "2023-09-29"
+preserve_keywords = ["cs", "vac"]
+
+[presets.Shooter.replacements]
+cheater = "cheat"
+"""
+
+
+@pytest.fixture
+def presets_file(tmp_path: Path) -> Path:
+    """Write a one-preset TOML file.
+
+    Returns:
+        Path of the presets file.
+    """
+    path = tmp_path / "presets.toml"
+    path.write_text(PRESETS_TOML, encoding="utf-8")
+    return path
+
+
+def test_analyse_preset_supplies_default_cutoff(presets_file: Path) -> None:
     """Use the preset boundary when no cutoff is supplied."""
     args = cli.build_parser().parse_args(
-        ["analyse", "report", "--game", "730", "--preset", "Counter_Strike"]
+        [
+            "analyse",
+            "report",
+            "--game",
+            "730",
+            "--preset",
+            "Shooter",
+            "--presets",
+            str(presets_file),
+        ]
     )
 
     assert analysis_cli._cutoff(args) == "2023-09-29"
+
+
+def test_analyse_unknown_preset_fails(
+    presets_file: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Report a preset missing from the presets file as a workflow failure."""
+    workflow = Mock()
+    monkeypatch.setattr(analysis_cli, "run_analysis", workflow)
+    argv = ["analyse", "report", "--game", "1", "--preset", "Nope", "--presets", str(presets_file)]
+
+    assert cli.main(argv) == 1
+    assert "available: Shooter" in caplog.text
+    workflow.assert_not_called()
+
+
+def test_analyse_preset_without_presets_file_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fail cleanly when a preset is requested but no presets file exists."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(analysis_cli, "run_analysis", Mock())
+
+    assert cli.main(["analyse", "report", "--game", "1", "--preset", "Shooter"]) == 1
+
+
+def test_analyse_uses_data_dir_for_inputs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Resolve processed data and default artifact paths from `--data-dir`."""
+    loader = Mock(side_effect=ValueError("stop after resolving paths"))
+    monkeypatch.setattr(analysis_cli, "load_reviews", loader)
+
+    argv = ["--data-dir", str(tmp_path), "analyse", "sentiment", "--game", "1"]
+    assert cli.main(argv) == 1
+    assert loader.call_args.args == ("1", tmp_path / "processed")
 
 
 def test_analyse_requires_cutoff_without_preset(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -64,7 +131,9 @@ def test_analyse_rejects_nonpositive_limits() -> None:
     assert caught.value.code == 2
 
 
-def test_analyse_report_dispatches_to_workflow(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_analyse_report_dispatches_to_workflow(
+    monkeypatch: pytest.MonkeyPatch, presets_file: Path
+) -> None:
     """Forward command-line options to the public report workflow."""
     report = SimpleNamespace(
         game="Alpha",
@@ -86,7 +155,9 @@ def test_analyse_report_dispatches_to_workflow(monkeypatch: pytest.MonkeyPatch) 
                 "--cutoff",
                 "2024-01-01",
                 "--preset",
-                "PUBG",
+                "Shooter",
+                "--presets",
+                str(presets_file),
                 "--top",
                 "7",
                 "--min-word-freq",
@@ -98,7 +169,7 @@ def test_analyse_report_dispatches_to_workflow(monkeypatch: pytest.MonkeyPatch) 
     assert workflow.call_args.args == ("Alpha", "2024-01-01")
     assert workflow.call_args.kwargs["top_n"] == 7
     assert workflow.call_args.kwargs["min_word_freq"] == 3
-    assert workflow.call_args.kwargs["config"] is not None
+    assert workflow.call_args.kwargs["config"].replacements == {"cheater": "cheat"}
 
 
 def test_analyse_report_failure_returns_failure_code(monkeypatch: pytest.MonkeyPatch) -> None:

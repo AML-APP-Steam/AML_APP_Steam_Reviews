@@ -8,10 +8,15 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from steam_reviews.config import Game
-from steam_reviews.io import read_processed, read_raw_reviews, write_processed, write_raw_reviews
-from steam_reviews.processing.cleaning import clean_reviews, extract_first_int
-from steam_reviews.schema import RAW_COLUMNS, Review
+from steam_review_analysis.config import Game
+from steam_review_analysis.io import (
+    read_processed,
+    read_raw_reviews,
+    write_processed,
+    write_raw_reviews,
+)
+from steam_review_analysis.processing.cleaning import clean_reviews, extract_first_int
+from steam_review_analysis.schema import RAW_COLUMNS, Review
 
 
 @pytest.fixture

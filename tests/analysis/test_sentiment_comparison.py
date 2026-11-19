@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from steam_reviews.analysis.sentiment_comparison import (
+from steam_review_analysis.analysis.sentiment_comparison import (
     compare_sentiment_methods,
     confusion_matrix,
     evaluate_sentiment,

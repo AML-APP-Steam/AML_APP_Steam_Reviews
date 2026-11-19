@@ -5,7 +5,7 @@ from types import MappingProxyType
 import pandas as pd
 import pytest
 
-from steam_reviews.analysis.text import (
+from steam_review_analysis.analysis.text import (
     PreprocessingConfig,
     build_vocabulary,
     filter_tokens,
@@ -25,6 +25,7 @@ def test_wordnet_pos_maps_treebank_tags(tag: str, expected: str) -> None:
     assert wordnet_pos(tag) == expected
 
 
+@pytest.mark.usefixtures("nltk_corpora")
 def test_preprocess_text_normalizes_and_applies_domain_rules() -> None:
     """Lowercase, strip punctuation, lemmatize and apply replacements and preserved words."""
     config = PreprocessingConfig(
@@ -35,11 +36,13 @@ def test_preprocess_text_normalizes_and_applies_domain_rules() -> None:
     assert preprocess_text("Cheater plays CSGO and CS!", config) == "cheat play cs cs"
 
 
+@pytest.mark.usefixtures("nltk_corpora")
 def test_preprocess_text_removes_stopwords_short_tokens_and_numbers() -> None:
     """Drop stopwords, one-character tokens and numeric tokens."""
     assert preprocess_text("I have 2 a game") == "game"
 
 
+@pytest.mark.usefixtures("nltk_corpora")
 def test_preprocess_text_returns_empty_for_blank_input() -> None:
     """Return an empty string when the review has no usable text."""
     assert preprocess_text("   ...   ") == ""
@@ -67,6 +70,7 @@ def test_filter_tokens_preserves_order() -> None:
     assert filter_tokens(["b", "a", "c"], frozenset({"b", "c"})) == ["b", "c"]
 
 
+@pytest.mark.usefixtures("nltk_corpora")
 def test_prepare_documents_adds_processed_text_and_vocabulary(sample_frame: pd.DataFrame) -> None:
     """Prepare documents, filter rare tokens and drop rows with no processed text."""
     frame = pd.concat(

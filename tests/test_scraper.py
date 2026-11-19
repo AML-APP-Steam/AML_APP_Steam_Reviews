@@ -6,8 +6,8 @@ from typing import cast
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.remote.webelement import WebElement
 
-from steam_reviews.schema import NO_HELPFUL_VOTES, Review
-from steam_reviews.scraping.scraper import parse_card, review_url
+from steam_review_analysis.schema import NO_HELPFUL_VOTES, Review
+from steam_review_analysis.scraping.scraper import parse_card, review_url
 
 
 class FakeElement:

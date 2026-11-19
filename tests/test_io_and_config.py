@@ -3,9 +3,12 @@
 from datetime import date
 from pathlib import Path
 
-from steam_reviews.config import GAMES_FILE, Game, load_games
-from steam_reviews.io import raw_path, read_raw_reviews, write_raw_reviews
-from steam_reviews.schema import RAW_COLUMNS, Review
+import pytest
+
+from steam_review_analysis import config
+from steam_review_analysis.config import Game, load_games
+from steam_review_analysis.io import raw_path, read_raw_reviews, write_raw_reviews
+from steam_review_analysis.schema import RAW_COLUMNS, Review
 
 
 def test_raw_roundtrip(tmp_path: Path) -> None:
@@ -32,6 +35,32 @@ def test_load_games(tmp_path: Path) -> None:
     assert load_games(path) == {7: Game(7, "Seven")}
 
 
-def test_shipped_games_file_is_valid() -> None:
+def test_repository_games_file_is_valid() -> None:
     """Ensure the repository game registry loads and includes the Terraria sample ID."""
-    assert 105600 in load_games(GAMES_FILE)
+    repository_root = Path(__file__).resolve().parents[1]
+    assert 105600 in load_games(repository_root / config.DEFAULT_GAMES_FILE)
+
+
+def test_data_dir_prefers_argument_then_environment_then_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Resolve data locations at call time, never relative to the installed package."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv(config.DATA_DIR_ENV, raising=False)
+    assert config.data_dir() == tmp_path / "data"
+    assert config.raw_dir() == tmp_path / "data" / "raw"
+
+    monkeypatch.setenv(config.DATA_DIR_ENV, str(tmp_path / "env"))
+    assert config.processed_dir() == tmp_path / "env" / "processed"
+    assert config.analysis_dir(tmp_path / "arg") == tmp_path / "arg" / "processed" / "analysis"
+
+
+def test_io_defaults_follow_configured_data_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Write and read raw data under the configured directory when no path is passed."""
+    monkeypatch.setenv(config.DATA_DIR_ENV, str(tmp_path))
+    review = Review(7, date(2024, 5, 21), "Fine", "1.0", "Recommended", "0")
+    write_raw_reviews(raw_path(7), [review])
+    assert (tmp_path / "raw" / "7_reviews.csv").is_file()
+    assert read_raw_reviews()["Game"].tolist() == [7]
