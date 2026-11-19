@@ -47,8 +47,9 @@ print(word_frequencies(prepared.reviews["document"], top_n=10))
 `steam_review_analysis.analysis.report.run_analysis(game, cutoff)` runs everything and returns
 the in-memory tables plus the paths of all written files. Plot helpers in
 `steam_review_analysis.analysis.plotting` return matplotlib figures, so notebooks can display
-them directly. The project notebooks (`notebooks/*_EDA.ipynb`) explore the Counter-Strike,
-PUBG and The Sims 4 datasets.
+them directly. The notebooks in `notebooks/` show these functions in use: `01_quickstart`
+(one-call report and CLI), `02_event_impact_across_games` (step-by-step comparison of three
+games) and `03_sentiment_models` (VADER vs transformer models).
 
 Text preprocessing needs NLTK corpora. Library functions raise an error naming any missing
 corpus instead of downloading it; install them once with `steam-review-analysis download-nltk`
