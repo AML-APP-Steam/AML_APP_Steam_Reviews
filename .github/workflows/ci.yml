@@ -28,6 +28,8 @@ jobs:
       - run: uv run pytest
 
   # Test against the OLDEST versions allowed by pyproject.toml, so the lower bounds stay honest.
+  # Only direct dependencies are pinned low; transitive ones (e.g. sortedcontainers via
+  # selenium -> trio) would otherwise resolve to ancient releases that no longer build.
   lowest-dependencies:
     runs-on: ubuntu-latest
     steps:
@@ -40,7 +42,7 @@ jobs:
           key: nltk-${{ hashFiles('src/steam_review_analysis/analysis/nltk_resources.py') }}
       - run: uv venv --python 3.11
       - run: >-
-          uv pip install --resolution lowest
+          uv pip install --resolution lowest-direct
           ".[scrape,analysis]" "pytest>=8.0" "pytest-cov>=5.0"
       - run: .venv/bin/python -m pytest --no-cov
 

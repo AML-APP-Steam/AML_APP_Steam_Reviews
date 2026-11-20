@@ -58,9 +58,19 @@ report = run_analysis(105600, "2024-01-01")
 print(report.output_dir, sorted(report.tables))
 ```
 
-More worked examples will live in the Jupyter notebooks in [`notebooks/`](notebooks/). They
-are not part of the installed package, and for now they hold the original per-game exploratory
-analysis rather than calls to this package.
+Worked examples live in the Jupyter notebooks in
+[`notebooks/`](https://github.com/G-a-b-b-s/AML_APP_Steam_Reviews/tree/main/notebooks), which
+run on the review sample bundled with the repository (they are not part of the installed
+package):
+
+- [`01_quickstart`](https://github.com/G-a-b-b-s/AML_APP_Steam_Reviews/blob/main/notebooks/01_quickstart.ipynb):
+  raw reviews → cleaned dataset → full report with one call, plus the CLI equivalents
+- [`02_event_impact_across_games`](https://github.com/G-a-b-b-s/AML_APP_Steam_Reviews/blob/main/notebooks/02_event_impact_across_games.ipynb):
+  the analysis step by step, comparing Counter-Strike, PUBG and The Sims 4 before and after a
+  major change to each game
+- [`03_sentiment_models`](https://github.com/G-a-b-b-s/AML_APP_Steam_Reviews/blob/main/notebooks/03_sentiment_models.ipynb):
+  VADER and the transformer models scored against the reviewers' own recommendations
+  (needs the `sentiment` extra)
 
 ## Commands
 
