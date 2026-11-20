@@ -4341,7 +4341,7 @@ requires-dist = [
     { name = "laya", marker = "extra == 'sentiment'", specifier = ">=0.4.15" },
     { name = "matplotlib", marker = "extra == 'analysis'", specifier = ">=3.9" },
     { name = "nano-jev", marker = "extra == 'sentiment'", specifier = ">=1.0.0" },
-    { name = "nltk", marker = "extra == 'analysis'", specifier = ">=3.9" },
+    { name = "nltk", marker = "extra == 'analysis'", specifier = ">=3.9.1" },
     { name = "numpy", marker = "extra == 'analysis'", specifier = ">=1.26" },
     { name = "optimum-quanto", marker = "extra == 'sentiment'", specifier = ">=0.2.7" },
     { name = "pandas", specifier = ">=2.2" },

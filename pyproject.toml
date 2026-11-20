@@ -36,7 +36,7 @@ scrape = [
 ]
 analysis = [
     "matplotlib>=3.9",
-    "nltk>=3.9",
+    "nltk>=3.9.1",  # 3.9.0 needs the wordnet corpus just to `import nltk`
     "numpy>=1.26",
     "scikit-learn>=1.9.1",
     "scipy>=1.11",
