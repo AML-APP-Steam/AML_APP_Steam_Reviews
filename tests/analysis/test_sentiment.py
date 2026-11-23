@@ -32,8 +32,10 @@ def test_sentiment_category_uses_vader_thresholds(score: float, expected: str) -
 @pytest.mark.usefixtures("nltk_corpora")
 def test_sentiment_scores_follow_text_polarity() -> None:
     """Assign a positive compound score to praise and a negative score to criticism."""
+    # Act
     positive, negative = sentiment_scores(["I love this great game", "I hate this bad game"])
 
+    # Assert
     assert positive > 0
     assert negative < 0
 
@@ -41,12 +43,15 @@ def test_sentiment_scores_follow_text_polarity() -> None:
 @pytest.mark.usefixtures("nltk_corpora")
 def test_add_sentiment_preserves_input_and_adds_columns(sample_frame: pd.DataFrame) -> None:
     """Score processed reviews without changing the caller's frame."""
+    # Arrange
     original = sample_frame.copy(deep=True)
     processed = sample_frame.assign(processed_review=sample_frame["text"])
     original_processed = processed.copy(deep=True)
 
+    # Act
     result = add_sentiment(processed)
 
+    # Assert
     pd.testing.assert_frame_equal(processed, original_processed)
     assert sample_frame.equals(original)
     assert {"sentiment_score", "sentiment_category"}.issubset(result.columns)
@@ -62,8 +67,10 @@ def test_add_sentiment_rejects_missing_column(sample_frame: pd.DataFrame) -> Non
 
 def test_fit_sentiment_distributions_returns_finite_parameters() -> None:
     """Fit all three candidate distributions to varied finite scores."""
+    # Act
     fits = fit_sentiment_distributions([-0.8, -0.3, -0.1, 0.0, 0.2, 0.5, 0.9])
 
+    # Assert
     assert all(math.isfinite(value) for value in (*fits.normal, *fits.laplace, *fits.beta))
     assert fits.beta[0] > 0
     assert fits.beta[1] > 0
@@ -77,6 +84,7 @@ def test_fit_sentiment_distributions_rejects_too_few_values() -> None:
 
 def test_sentiment_summary_reports_counts_and_shares() -> None:
     """Summarize count, mean score and category shares."""
+    # Arrange
     reviews = pd.DataFrame(
         {
             "sentiment_score": [0.5, 0.0, -0.8, 0.2],
@@ -84,8 +92,10 @@ def test_sentiment_summary_reports_counts_and_shares() -> None:
         }
     )
 
+    # Act
     summary = sentiment_summary(reviews)
 
+    # Assert
     assert summary["count"] == 4
     assert summary["mean_score"] == pytest.approx(-0.025)
     assert summary["positive_share"] == 0.5

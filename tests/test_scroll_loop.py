@@ -9,7 +9,8 @@ from selenium.webdriver.remote.webdriver import WebDriver
 
 from steam_review_analysis.schema import Review
 from steam_review_analysis.scraping import scraper
-from steam_review_analysis.scraping.scraper import ReviewScraper, ScraperSettings, ScrapingError
+from steam_review_analysis.scraping.scraper import ReviewScraper
+from steam_review_analysis.scraping.settings import ScraperSettings, ScrapingError
 
 
 class FakeBody:
@@ -115,8 +116,10 @@ def scrape(
 
 def test_stops_at_target_without_duplicates(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stop at the requested sample size while repeated visible cards remain deduplicated."""
+    # Act
     reviews, driver = scrape(monkeypatch, available=100, target=5)
 
+    # Assert
     assert len(reviews) == 5
     assert len(set(reviews)) == 5
     assert "/app/42/reviews/" in driver.visited[0]
@@ -124,8 +127,10 @@ def test_stops_at_target_without_duplicates(monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_gives_up_when_page_stops_loading_reviews(monkeypatch: pytest.MonkeyPatch) -> None:
     """Return a smaller sample after the configured consecutive no-progress scroll limit."""
+    # Act
     reviews, driver = scrape(monkeypatch, available=4, target=600)
 
+    # Assert
     assert len(reviews) == 4
     assert driver.scrolls == 4 + 3  # four productive scrolls, then three stalled ones
 
@@ -139,6 +144,7 @@ def test_empty_page_is_a_failure(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_repeated_stale_errors_have_a_finite_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stop persistent stale-element failures at the configured retry limit."""
 
+    # Arrange
     def stale_cards(*_: object) -> list[object]:
         """Simulate a page whose card lookup is stale on every attempt.
 
@@ -153,14 +159,19 @@ def test_repeated_stale_errors_have_a_finite_limit(monkeypatch: pytest.MonkeyPat
     driver = FakeDriver(available=1)
     monkeypatch.setattr(driver, "find_elements", stale_cards)
     settings = ScraperSettings(scroll_pause_s=0, max_stale_retries=3)
+
+    # Act
     with pytest.raises(ScrapingError, match="retry limit"):
         ReviewScraper(cast(WebDriver, driver), settings).scrape(42)
+
+    # Assert
     assert driver.scrolls == settings.max_stale_retries
 
 
 def test_navigation_failure_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
     """Raise a scraping error immediately when navigation fails, before any scrolling."""
 
+    # Arrange
     def fail_navigation(url: str) -> None:
         """Simulate a failed browser navigation request.
 
@@ -174,13 +185,18 @@ def test_navigation_failure_is_reported(monkeypatch: pytest.MonkeyPatch) -> None
 
     driver = FakeDriver(available=1)
     monkeypatch.setattr(driver, "get", fail_navigation)
+
+    # Act
     with pytest.raises(ScrapingError, match="browser failed"):
         ReviewScraper(cast(WebDriver, driver)).scrape(42)
+
+    # Assert
     assert driver.scrolls == 0
 
 
 def test_transient_stale_errors_reset_after_success(monkeypatch: pytest.MonkeyPatch) -> None:
     """Reset the consecutive stale counter after a successful page read."""
+    # Arrange
     calls = 0
 
     def intermittent_cards(*_: object) -> list[object]:
@@ -217,5 +233,7 @@ def test_transient_stale_errors_reset_after_success(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(driver, "find_elements", intermittent_cards)
     monkeypatch.setattr(scraper, "parse_card", parse_card)
     settings = ScraperSettings(target_reviews=2, scroll_pause_s=0, max_stale_retries=3)
+
+    # Act & Assert
     assert len(ReviewScraper(cast(WebDriver, driver), settings).scrape(42)) == 2
     assert calls == 6
