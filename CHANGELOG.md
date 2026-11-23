@@ -8,6 +8,15 @@ All notable changes are documented here. The format follows
 
 First packaged release.
 
+## [0.1.1] - 2026-11-23
+
+### Fixed
+- Require nltk 3.9.1, since 3.9.0 fails to import without the wordnet corpus.
+
+### Changed
+- Replaced the per-game EDA notebooks with three example notebooks that use the package.
+- CONTRIBUTING.md: repository layout as a tree, import rule and test structure.
+
 ### Added
 
 - `steam-review-analysis` command with `scrape`, `clean`, `analyse` and `download-nltk`
