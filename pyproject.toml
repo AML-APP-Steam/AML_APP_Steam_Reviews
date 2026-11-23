@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "steam-review-analysis"
-version = "0.1.0"
+version = "0.1.1"
 description = "Scrape, clean and analyse Steam community reviews."
 readme = "README.md"
 requires-python = ">=3.11"
