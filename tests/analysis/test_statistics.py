@@ -29,10 +29,13 @@ def _scored_frame(sample_frame: pd.DataFrame) -> pd.DataFrame:
 
 def test_pearson_correlations_returns_before_and_after_rows(sample_frame: pd.DataFrame) -> None:
     """Measure each requested pair before and after the cutoff."""
+    # Arrange
     reviews = _scored_frame(sample_frame)
 
+    # Act
     result = pearson_correlations(reviews, "2023-09-29")
 
+    # Assert
     assert result["comparison"].tolist() == [
         "sentiment_score vs hours_played",
         "sentiment_score vs helpful_votes",
@@ -43,17 +46,23 @@ def test_pearson_correlations_returns_before_and_after_rows(sample_frame: pd.Dat
 
 def test_pearson_correlations_rejects_missing_column(sample_frame: pd.DataFrame) -> None:
     """Report a requested column that is absent from the frame."""
+    # Arrange
     reviews = _scored_frame(sample_frame).drop(columns=["helpful_votes"])
+
+    # Act & Assert
     with pytest.raises(KeyError):
         pearson_correlations(reviews, "2023-09-29")
 
 
 def test_yearly_mean_aggregates_and_sorts(sample_frame: pd.DataFrame) -> None:
     """Average sentiment per year and sort ascending."""
+    # Arrange
     reviews = add_year(_scored_frame(sample_frame))
 
+    # Act
     result = yearly_mean(reviews)
 
+    # Assert
     assert result["year"].tolist() == sorted(result["year"].tolist())
     assert result.loc[result["year"] == 2024, "sentiment_score"].iloc[0] == pytest.approx(0.1)
 
@@ -66,10 +75,13 @@ def test_yearly_mean_rejects_missing_column(sample_frame: pd.DataFrame) -> None:
 
 def test_engagement_split_uses_median_hours(sample_frame: pd.DataFrame) -> None:
     """Flag reviews whose playtime exceeds the median."""
+    # Arrange
     reviews = _scored_frame(sample_frame)
 
+    # Act
     result = engagement_split(reviews)
 
+    # Assert
     assert result["engaged"].dtype == bool
     assert result.loc[result["hours_played"] > reviews["hours_played"].median(), "engaged"].all()
 

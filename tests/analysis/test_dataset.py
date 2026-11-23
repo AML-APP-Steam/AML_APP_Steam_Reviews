@@ -39,8 +39,10 @@ def test_resolve_game_rejects_empty_frame() -> None:
 
 def test_load_reviews_filters_game_and_sorts_by_date(processed_dir: Path) -> None:
     """Load one game's reviews in ascending date order."""
+    # Act
     reviews = load_reviews(1, processed_dir)
 
+    # Assert
     assert set(reviews["app_id"]) == {1}
     assert reviews["date"].is_monotonic_increasing
     assert list(reviews.index) == list(range(len(reviews)))
@@ -76,9 +78,13 @@ def test_slugify_and_default_output_dir() -> None:
 
 def test_split_by_cutoff_includes_boundary_in_after(sample_frame: pd.DataFrame) -> None:
     """Place reviews on the cutoff date in the later period."""
+    # Arrange
     reviews = sample_frame.assign(date=pd.to_datetime(sample_frame["date"]))
+
+    # Act
     before, after = split_by_cutoff(reviews, "2023-09-29")
 
+    # Assert
     assert "2023-09-29" not in before["date"].dt.strftime("%Y-%m-%d").tolist()
     assert "2023-09-29" in after["date"].dt.strftime("%Y-%m-%d").tolist()
     assert (after["date"] >= pd.Timestamp("2023-09-29")).all()
@@ -87,33 +93,47 @@ def test_split_by_cutoff_includes_boundary_in_after(sample_frame: pd.DataFrame) 
 
 def test_split_by_cutoff_rejects_invalid_date(sample_frame: pd.DataFrame) -> None:
     """Reject an unparseable cutoff."""
+    # Arrange
     reviews = sample_frame.assign(date=pd.to_datetime(sample_frame["date"]))
+
+    # Act & Assert
     with pytest.raises(ValueError, match="Invalid cutoff"):
         split_by_cutoff(reviews, "not-a-date")
 
 
 def test_add_year_inserts_integer_column(sample_frame: pd.DataFrame) -> None:
     """Derive the calendar year after the date column."""
+    # Arrange
     reviews = sample_frame.assign(date=pd.to_datetime(sample_frame["date"]))
+
+    # Act
     result = add_year(reviews)
 
+    # Assert
     assert result["year"].tolist() == reviews["date"].dt.year.tolist()
     assert str(result["year"].dtype) == "int64"
 
 
 def test_add_year_rejects_missing_dates(sample_frame: pd.DataFrame) -> None:
     """Reject frames whose dates contain missing values."""
+    # Arrange
     reviews = sample_frame.assign(date=pd.to_datetime(sample_frame["date"]))
     reviews.loc[0, "date"] = pd.NaT
+
+    # Act & Assert
     with pytest.raises(ValueError, match="missing"):
         add_year(reviews)
 
 
 def test_add_period_labels_boundary_as_after(sample_frame: pd.DataFrame) -> None:
     """Label each review before or after the cutoff."""
+    # Arrange
     reviews = sample_frame.assign(date=pd.to_datetime(sample_frame["date"]))
+
+    # Act
     result = add_period(reviews, "2023-09-29")
 
+    # Assert
     boundary_rows = result.loc[result["date"] == pd.Timestamp("2023-09-29"), "period"]
     assert boundary_rows.tolist() == ["After"]
     assert set(result["period"]) == {"Before", "After"}
@@ -121,8 +141,12 @@ def test_add_period_labels_boundary_as_after(sample_frame: pd.DataFrame) -> None
 
 def test_period_frames_returns_before_and_after(sample_frame: pd.DataFrame) -> None:
     """Return named before and after frames."""
+    # Arrange
     reviews = sample_frame.assign(date=pd.to_datetime(sample_frame["date"]))
+
+    # Act
     frames = period_frames(reviews, "2023-09-29")
 
+    # Assert
     assert set(frames) == {"before", "after"}
     assert len(frames["before"]) + len(frames["after"]) == len(reviews)

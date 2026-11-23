@@ -13,7 +13,7 @@ from steam_review_analysis import cli
 from steam_review_analysis.io import read_raw_reviews
 from steam_review_analysis.schema import Review
 from steam_review_analysis.scraping import driver, scraper, service
-from steam_review_analysis.scraping.scraper import ScraperSettings, ScrapingError
+from steam_review_analysis.scraping.settings import ScraperSettings, ScrapingError
 
 
 @pytest.fixture
@@ -48,11 +48,14 @@ def browser(monkeypatch: pytest.MonkeyPatch) -> Mock:
 
 def test_public_workflow_saves_each_game_once(tmp_path: Path, browser: Mock) -> None:
     """Save one CSV per distinct requested game and close the shared browser session."""
+    # Act
     paths = service.scrape_games(
         [42, 43, 42],
         settings=ScraperSettings(target_reviews=1, scroll_pause_s=0),
         raw_dir=tmp_path,
     )
+
+    # Assert
     assert paths == {42: tmp_path / "42_reviews.csv", 43: tmp_path / "43_reviews.csv"}
     assert read_raw_reviews(tmp_path)["Game"].tolist() == [42, 43]
     assert browser.get.call_count == 2
@@ -64,12 +67,17 @@ def test_existing_file_fails_before_browser_start(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Check all destinations before launching Chrome or creating any batch output."""
+    # Arrange
     factory = Mock()
     monkeypatch.setattr(driver.webdriver, "Chrome", factory)
     path = tmp_path / "43_reviews.csv"
     path.write_bytes(b"existing dataset")
+
+    # Act
     with pytest.raises(FileExistsError):
         service.scrape_games([42, 43], raw_dir=tmp_path)
+
+    # Assert
     factory.assert_not_called()
     assert not (tmp_path / "42_reviews.csv").exists()
     assert path.read_bytes() == b"existing dataset"
@@ -83,13 +91,17 @@ def test_cli_browser_failure_preserves_csv_and_reports_failure(
     failure_stage: str,
 ) -> None:
     """Log browser failures, return exit code 1, and preserve the previous CSV."""
+    # Arrange
     path = tmp_path / "raw" / "42_reviews.csv"
     path.parent.mkdir()
     path.write_bytes(b"existing dataset")
     getattr(browser, failure_stage).side_effect = WebDriverException("browser disconnected")
 
+    # Act
     data_dir = ["--data-dir", str(tmp_path)]
     assert cli.main([*data_dir, "scrape", "42", "--overwrite", "--scroll-pause", "0"]) == 1
+
+    # Assert
     assert "Scraping failed" in caplog.text
     assert path.read_bytes() == b"existing dataset"
     browser.quit.assert_called_once()
@@ -99,9 +111,12 @@ def test_partial_results_are_not_published_on_browser_failure(
     tmp_path: Path, browser: Mock
 ) -> None:
     """Discard a partial scrape when the browser fails after the first valid card."""
+    # Arrange
     path = tmp_path / "42_reviews.csv"
     path.write_bytes(b"existing dataset")
     browser.find_elements.side_effect = [[Mock()], WebDriverException("lost browser")]
+
+    # Act
     with pytest.raises(ScrapingError):
         service.scrape_games(
             [42],
@@ -109,29 +124,41 @@ def test_partial_results_are_not_published_on_browser_failure(
             raw_dir=tmp_path,
             overwrite=True,
         )
+
+    # Assert
     assert path.read_bytes() == b"existing dataset"
     browser.quit.assert_called_once()
 
 
 def test_empty_page_creates_no_csv(tmp_path: Path, browser: Mock) -> None:
     """Fail an empty scrape without publishing a header-only CSV."""
+    # Arrange
     browser.find_elements.return_value = []
+
+    # Act
     with pytest.raises(ScrapingError, match="no valid reviews"):
         service.scrape_games(
             [42],
             settings=ScraperSettings(scroll_pause_s=0, max_stalled_scrolls=2),
             raw_dir=tmp_path,
         )
+
+    # Assert
     assert list(tmp_path.iterdir()) == []
     browser.quit.assert_called_once()
 
 
 def test_shutdown_failure_does_not_mask_scraping_failure(tmp_path: Path, browser: Mock) -> None:
     """Keep the original navigation failure when browser shutdown also raises an error."""
+    # Arrange
     browser.get.side_effect = WebDriverException("navigation failed")
     browser.quit.side_effect = WebDriverException("shutdown failed")
+
+    # Act
     with pytest.raises(ScrapingError, match="browser failed") as caught:
         service.scrape_games([42], raw_dir=tmp_path)
+
+    # Assert
     assert caught.value.__cause__ is browser.get.side_effect
 
 
@@ -142,10 +169,15 @@ def test_invalid_game_selection_does_not_start_browser(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Reject empty or invalid game selections before launching Chrome."""
+    # Arrange
     factory = Mock()
     monkeypatch.setattr(driver.webdriver, "Chrome", factory)
+
+    # Act
     with pytest.raises(ValueError):
         service.scrape_games(app_ids, raw_dir=tmp_path)
+
+    # Assert
     factory.assert_not_called()
 
 
@@ -155,8 +187,13 @@ def test_cli_reports_browser_startup_failure(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Report Chrome startup errors through logging and exit code 1 without writing data."""
+    # Arrange
     factory = Mock(side_effect=WebDriverException("Chrome unavailable"))
     monkeypatch.setattr(driver.webdriver, "Chrome", factory)
+
+    # Act
     assert cli.main(["--data-dir", str(tmp_path), "scrape", "42"]) == 1
+
+    # Assert
     assert "Chrome unavailable" in caplog.text
     assert list(tmp_path.iterdir()) == []

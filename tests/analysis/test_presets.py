@@ -10,6 +10,7 @@ from steam_review_analysis.analysis.text import DEFAULT_EXTRA_STOPWORDS
 
 def test_load_presets_builds_preprocessing_config(tmp_path: Path) -> None:
     """Map TOML keys onto the preset and its preprocessing rules."""
+    # Arrange
     path = tmp_path / "presets.toml"
     path.write_text(
         '[presets.A]\napp_id = 1\ncutoff = "2024-01-01"\npreserve_keywords = ["gg"]\n'
@@ -17,8 +18,10 @@ def test_load_presets_builds_preprocessing_config(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
+    # Act
     preset = preset_for("A", load_presets(path))
 
+    # Assert
     assert (preset.name, preset.app_id, preset.cutoff) == ("A", 1, "2024-01-01")
     assert preset.preprocessing.preserve_keywords == frozenset({"gg"})
     assert preset.preprocessing.replacements == {"won": "win"}
@@ -28,9 +31,11 @@ def test_load_presets_builds_preprocessing_config(tmp_path: Path) -> None:
 
 def test_malformed_preset_is_rejected(tmp_path: Path) -> None:
     """Require an app id and cutoff for every preset."""
+    # Arrange
     path = tmp_path / "presets.toml"
     path.write_text("[presets.A]\napp_id = 1\n", encoding="utf-8")
 
+    # Act & Assert
     with pytest.raises(ValueError, match="Preset 'A'"):
         load_presets(path)
 
@@ -43,7 +48,12 @@ def test_unknown_preset_lists_available_names() -> None:
 
 def test_repository_presets_file_is_valid() -> None:
     """Keep the project presets used by the notebooks and CLI loadable."""
+    # Arrange
     repository_root = Path(__file__).resolve().parents[2]
+
+    # Act
     presets = load_presets(repository_root / DEFAULT_PRESETS_FILE)
+
+    # Assert
     assert {"Counter_Strike", "PUBG", "SIMS"} <= set(presets)
     assert presets["PUBG"].cutoff == "2022-03-23"
