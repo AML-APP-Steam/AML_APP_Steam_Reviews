@@ -77,6 +77,7 @@ def test_slugify_and_default_output_dir() -> None:
 def test_split_by_cutoff_includes_boundary_in_after(sample_frame: pd.DataFrame) -> None:
     """Place reviews on the cutoff date in the later period."""
     reviews = sample_frame.assign(date=pd.to_datetime(sample_frame["date"]))
+
     before, after = split_by_cutoff(reviews, "2023-09-29")
 
     assert "2023-09-29" not in before["date"].dt.strftime("%Y-%m-%d").tolist()
@@ -88,6 +89,7 @@ def test_split_by_cutoff_includes_boundary_in_after(sample_frame: pd.DataFrame) 
 def test_split_by_cutoff_rejects_invalid_date(sample_frame: pd.DataFrame) -> None:
     """Reject an unparseable cutoff."""
     reviews = sample_frame.assign(date=pd.to_datetime(sample_frame["date"]))
+
     with pytest.raises(ValueError, match="Invalid cutoff"):
         split_by_cutoff(reviews, "not-a-date")
 
@@ -95,6 +97,7 @@ def test_split_by_cutoff_rejects_invalid_date(sample_frame: pd.DataFrame) -> Non
 def test_add_year_inserts_integer_column(sample_frame: pd.DataFrame) -> None:
     """Derive the calendar year after the date column."""
     reviews = sample_frame.assign(date=pd.to_datetime(sample_frame["date"]))
+
     result = add_year(reviews)
 
     assert result["year"].tolist() == reviews["date"].dt.year.tolist()
@@ -105,6 +108,7 @@ def test_add_year_rejects_missing_dates(sample_frame: pd.DataFrame) -> None:
     """Reject frames whose dates contain missing values."""
     reviews = sample_frame.assign(date=pd.to_datetime(sample_frame["date"]))
     reviews.loc[0, "date"] = pd.NaT
+
     with pytest.raises(ValueError, match="missing"):
         add_year(reviews)
 
@@ -112,6 +116,7 @@ def test_add_year_rejects_missing_dates(sample_frame: pd.DataFrame) -> None:
 def test_add_period_labels_boundary_as_after(sample_frame: pd.DataFrame) -> None:
     """Label each review before or after the cutoff."""
     reviews = sample_frame.assign(date=pd.to_datetime(sample_frame["date"]))
+
     result = add_period(reviews, "2023-09-29")
 
     boundary_rows = result.loc[result["date"] == pd.Timestamp("2023-09-29"), "period"]
@@ -122,6 +127,7 @@ def test_add_period_labels_boundary_as_after(sample_frame: pd.DataFrame) -> None
 def test_period_frames_returns_before_and_after(sample_frame: pd.DataFrame) -> None:
     """Return named before and after frames."""
     reviews = sample_frame.assign(date=pd.to_datetime(sample_frame["date"]))
+
     frames = period_frames(reviews, "2023-09-29")
 
     assert set(frames) == {"before", "after"}

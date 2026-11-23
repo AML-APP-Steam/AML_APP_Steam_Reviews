@@ -56,6 +56,7 @@ def test_clean_failure_does_not_publish_output(
     monkeypatch.setattr(cli, "read_raw_reviews", Mock(return_value=raw))
     monkeypatch.setattr(cli, "load_games", Mock(return_value={}))
     monkeypatch.setattr(cli, "write_processed", writer)
+
     assert cli.main(["clean"]) == 1
     writer.assert_not_called()
     assert caplog.records
@@ -64,6 +65,7 @@ def test_clean_failure_does_not_publish_output(
 def test_clean_io_failure_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
     """Convert an input-file read error into the cleaning failure exit code."""
     monkeypatch.setattr(cli, "read_raw_reviews", Mock(side_effect=OSError("cannot read raw CSV")))
+
     assert cli.main(["clean"]) == 1
 
 
@@ -91,8 +93,10 @@ def test_invalid_parameters_are_usage_errors(
     """Reject invalid scraping options before invoking the workflow, using exit code 2."""
     workflow = Mock()
     monkeypatch.setattr(service, "scrape_games", workflow)
+
     with pytest.raises(SystemExit) as caught:
         cli.main(["scrape", "42", option, value])
+
     assert caught.value.code == 2
     workflow.assert_not_called()
 
@@ -101,6 +105,7 @@ def test_cli_passes_explicit_settings_to_public_workflow(monkeypatch: pytest.Mon
     """Forward user-supplied limits and flags to the public scraping workflow unchanged."""
     workflow = Mock(return_value={})
     monkeypatch.setattr(service, "scrape_games", workflow)
+
     assert (
         cli.main(
             [
@@ -245,6 +250,7 @@ def test_building_the_parser_skips_heavy_imports() -> None:
         "heavy = {'nltk', 'scipy', 'matplotlib', 'sklearn', 'wordcloud', 'selenium'}\n"
         "print(sorted(heavy & set(sys.modules)))\n"
     )
+
     result = subprocess.run(
         [sys.executable, "-c", code], capture_output=True, text=True, check=True
     )

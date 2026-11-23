@@ -136,7 +136,9 @@ def test_plot_distribution_fits_returns_figure() -> None:
 def test_plot_distribution_fits_scales_rescaled_beta_density() -> None:
     """Divide the beta density by two after mapping its support onto the score range."""
     scores = [-0.8, -0.2, 0.0, 0.4, 0.9]
+
     figure = plot_distribution_fits(scores, title="Fit")
+
     beta_line = next(
         line for line in figure.axes[0].get_lines() if line.get_label() == "Beta (rescaled)"
     )
@@ -197,6 +199,7 @@ def test_save_figure_writes_png(tmp_path: Path) -> None:
     figure = plot_yearly_sentiment(
         pd.DataFrame({"year": [2024], "sentiment_score": [0.5]}),
     )
+
     path = save_figure(figure, tmp_path / "nested" / "plot.png")
 
     assert path.exists()

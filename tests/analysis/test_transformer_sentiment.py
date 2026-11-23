@@ -168,6 +168,7 @@ def test_predict_sentiment_rejects_nonpositive_batch_size(fake_backend: FakeBack
     """Reject a zero batch size before loading a model."""
     with pytest.raises(ValueError, match="batch_size"):
         predict_sentiment(["text"], batch_size=0)
+
     assert fake_backend.calls == []
 
 

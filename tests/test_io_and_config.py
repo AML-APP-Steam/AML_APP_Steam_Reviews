@@ -14,6 +14,7 @@ from steam_review_analysis.schema import RAW_COLUMNS, Review
 def test_raw_roundtrip(tmp_path: Path) -> None:
     """Preserve raw column order, quoted review text, and ISO dates through CSV I/O."""
     review = Review(1, date(2024, 5, 21), "Text, with a comma", "12.5", "Recommended", "3 people")
+
     write_raw_reviews(raw_path(1, tmp_path), [review])
 
     df = read_raw_reviews(tmp_path)
@@ -32,12 +33,14 @@ def test_load_games(tmp_path: Path) -> None:
     """Read a TOML game entry into a registry keyed by its application ID."""
     path = tmp_path / "games.toml"
     path.write_text('[[games]]\napp_id = 7\nname = "Seven"\n', encoding="utf-8")
+
     assert load_games(path) == {7: Game(7, "Seven")}
 
 
 def test_repository_games_file_is_valid() -> None:
     """Ensure the repository game registry loads and includes the Terraria sample ID."""
     repository_root = Path(__file__).resolve().parents[1]
+
     assert 105600 in load_games(repository_root / config.DEFAULT_GAMES_FILE)
 
 
@@ -47,10 +50,12 @@ def test_data_dir_prefers_argument_then_environment_then_cwd(
     """Resolve data locations at call time, never relative to the installed package."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv(config.DATA_DIR_ENV, raising=False)
+
     assert config.data_dir() == tmp_path / "data"
     assert config.raw_dir() == tmp_path / "data" / "raw"
 
     monkeypatch.setenv(config.DATA_DIR_ENV, str(tmp_path / "env"))
+
     assert config.processed_dir() == tmp_path / "env" / "processed"
     assert config.analysis_dir(tmp_path / "arg") == tmp_path / "arg" / "processed" / "analysis"
 
@@ -61,6 +66,8 @@ def test_io_defaults_follow_configured_data_dir(
     """Write and read raw data under the configured directory when no path is passed."""
     monkeypatch.setenv(config.DATA_DIR_ENV, str(tmp_path))
     review = Review(7, date(2024, 5, 21), "Fine", "1.0", "Recommended", "0")
+
     write_raw_reviews(raw_path(7), [review])
+
     assert (tmp_path / "raw" / "7_reviews.csv").is_file()
     assert read_raw_reviews()["Game"].tolist() == [7]

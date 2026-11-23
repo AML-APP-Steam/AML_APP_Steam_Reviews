@@ -44,6 +44,8 @@ def test_unknown_preset_lists_available_names() -> None:
 def test_repository_presets_file_is_valid() -> None:
     """Keep the project presets used by the notebooks and CLI loadable."""
     repository_root = Path(__file__).resolve().parents[2]
+
     presets = load_presets(repository_root / DEFAULT_PRESETS_FILE)
+
     assert {"Counter_Strike", "PUBG", "SIMS"} <= set(presets)
     assert presets["PUBG"].cutoff == "2022-03-23"

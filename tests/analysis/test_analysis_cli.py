@@ -98,6 +98,7 @@ def test_analyse_uses_data_dir_for_inputs(tmp_path: Path, monkeypatch: pytest.Mo
     monkeypatch.setattr(analysis_cli, "load_reviews", loader)
 
     argv = ["--data-dir", str(tmp_path), "analyse", "sentiment", "--game", "1"]
+
     assert cli.main(argv) == 1
     assert loader.call_args.args == ("1", tmp_path / "processed")
 
@@ -128,6 +129,7 @@ def test_analyse_rejects_nonpositive_limits() -> None:
     """Reject zero or negative word-frequency limits as usage errors."""
     with pytest.raises(SystemExit) as caught:
         cli.main(["analyse", "report", "--game", "Alpha", "--cutoff", "2024-01-01", "--top", "0"])
+
     assert caught.value.code == 2
 
 

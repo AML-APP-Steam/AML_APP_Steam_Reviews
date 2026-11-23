@@ -65,6 +65,7 @@ def test_yearless_leap_day_uses_supplied_year() -> None:
 def test_posting_label_is_only_removed_from_first_line() -> None:
     """Remove only a leading date label and retain matching text inside the review body."""
     label = "Posted: May 21, 2024"
+
     assert (
         strip_review_date(f"{label}\n First line\nSecond line ", label) == "First line Second line"
     )

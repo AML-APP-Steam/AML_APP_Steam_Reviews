@@ -44,6 +44,7 @@ def test_cleaning_normalizes_values_without_mutating_input(
 ) -> None:
     """Normalize and deduplicate dirty rows while preserving input data and logging removals."""
     original = raw_reviews.copy(deep=True)
+
     with caplog.at_level(logging.INFO):
         result = clean_reviews(raw_reviews, {42: Game(42, "First game")})
 
@@ -99,6 +100,7 @@ def test_missing_columns_have_a_clear_error(raw_reviews: pd.DataFrame, column: s
 def test_duplicate_column_names_are_rejected(raw_reviews: pd.DataFrame) -> None:
     """Reject ambiguous input with repeated column names before transforming any rows."""
     duplicated = pd.concat([raw_reviews, raw_reviews[["Game"]]], axis=1)
+
     with pytest.raises(ValueError, match="column names must be unique"):
         clean_reviews(duplicated)
 
@@ -107,6 +109,7 @@ def test_duplicate_column_names_are_rejected(raw_reviews: pd.DataFrame) -> None:
 def test_invalid_ids_are_not_silently_repaired(raw_reviews: pd.DataFrame, app_id: object) -> None:
     """Reject invalid IDs, including fractions that an integer cast could silently truncate."""
     raw = raw_reviews.iloc[:1].assign(Game=app_id)
+
     with pytest.raises(ValueError, match="Game/app_id"):
         clean_reviews(raw)
 
@@ -126,6 +129,7 @@ def test_invalid_ids_are_not_silently_repaired(raw_reviews: pd.DataFrame, app_id
 def test_invalid_dates_are_not_invented(raw_reviews: pd.DataFrame, value: object) -> None:
     """Reject invalid, partial, numeric, and timezone-aware dates instead of inventing dates."""
     raw = raw_reviews.iloc[:1].assign(Date=value)
+
     with pytest.raises(ValueError, match="Date must contain valid ISO"):
         clean_reviews(raw)
 
@@ -137,6 +141,7 @@ def test_unknown_recommendations_never_become_negative(
 ) -> None:
     """Reject missing or unknown labels instead of creating negative training examples."""
     raw = raw_reviews.iloc[:1].assign(Recommendation=label)
+
     with pytest.raises(ValueError, match="missing or unknown labels"):
         clean_reviews(raw)
 
@@ -145,7 +150,9 @@ def test_unknown_recommendations_never_become_negative(
 def test_invalid_hours_are_missing(raw_reviews: pd.DataFrame, hours: object) -> None:
     """Represent absent, invalid, negative, and infinite playtime as float NaN."""
     raw = raw_reviews.iloc[:1].assign(**{"Hours Played": hours})
+
     result = clean_reviews(raw)
+
     assert pd.isna(result.loc[0, "hours_played"])
     assert str(result["hours_played"].dtype) == "float64"
 
@@ -153,6 +160,7 @@ def test_invalid_hours_are_missing(raw_reviews: pd.DataFrame, hours: object) -> 
 def test_integer_hours_are_still_float(raw_reviews: pd.DataFrame) -> None:
     """Keep valid zero playtime as float64 even when every source value is an integer."""
     result = clean_reviews(raw_reviews.iloc[:1].assign(**{"Hours Played": "0"}))
+
     assert result.loc[0, "hours_played"] == 0.0
     assert str(result["hours_played"].dtype) == "float64"
 
@@ -160,6 +168,7 @@ def test_integer_hours_are_still_float(raw_reviews: pd.DataFrame) -> None:
 def test_empty_mapping_still_adds_game_column(raw_reviews: pd.DataFrame) -> None:
     """Distinguish an empty game registry from omitting game-name enrichment entirely."""
     result = clean_reviews(raw_reviews.iloc[:1], {})
+
     assert list(result.columns[:2]) == ["app_id", "game"]
     assert result["game"].isna().all()
     assert "game" not in clean_reviews(raw_reviews.iloc[:1]).columns
@@ -169,7 +178,9 @@ def test_empty_mapping_still_adds_game_column(raw_reviews: pd.DataFrame) -> None
 def test_empty_result_keeps_typed_schema(raw_reviews: pd.DataFrame, all_blank: bool) -> None:
     """Preserve output columns and numeric types when no review survives cleaning."""
     raw = raw_reviews.iloc[3:] if all_blank else raw_reviews.iloc[:0]
+
     result = clean_reviews(raw, {})
+
     assert result.empty
     assert list(result.columns) == [
         "app_id",
@@ -189,7 +200,9 @@ def test_empty_result_keeps_typed_schema(raw_reviews: pd.DataFrame, all_blank: b
 def test_extra_metadata_does_not_prevent_review_deduplication(raw_reviews: pd.DataFrame) -> None:
     """Deduplicate equivalent reviews even when unrelated source metadata differs."""
     raw = raw_reviews.iloc[:2].assign(source_file=["first.csv", "second.csv"])
+
     result = clean_reviews(raw)
+
     assert len(result) == 1
     assert "source_file" not in result.columns
 
@@ -202,14 +215,17 @@ def test_csv_workflow_preserves_literal_text_and_missing_hours(tmp_path: Path) -
     ]
     raw_dir = tmp_path / "raw"
     processed_dir = tmp_path / "processed"
+
     write_raw_reviews(raw_dir / "42_reviews.csv", reviews)
     raw = read_raw_reviews(raw_dir)
     expected_text = [review.text for review in reviews]
+
     assert raw["Review"].tolist() == expected_text
 
     cleaned = clean_reviews(raw, {})
     write_processed(cleaned, processed_dir)
     restored = read_processed(processed_dir)
+
     assert restored["text"].tolist() == expected_text
     assert restored["hours_played"].isna().all()
     assert restored["game"].isna().all()
@@ -221,4 +237,5 @@ def test_numeric_only_review_keeps_leading_zeros_when_loading(tmp_path: Path) ->
     """Keep a numeric-looking review as text rather than losing its leading zeros."""
     review = Review(42, date(2024, 5, 21), "001", "1", "Recommended", "0")
     write_raw_reviews(tmp_path / "42_reviews.csv", [review])
+
     assert clean_reviews(read_raw_reviews(tmp_path)).loc[0, "text"] == "001"

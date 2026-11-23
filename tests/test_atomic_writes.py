@@ -11,6 +11,7 @@ from steam_review_analysis.io import atomic_path, read_processed, write_processe
 def test_atomic_path_replaces_destination_on_success(tmp_path: Path) -> None:
     """Publish the new content and leave no temporary file behind."""
     path = tmp_path / "nested" / "out.csv"
+
     with atomic_path(path) as temporary:
         assert temporary.parent == path.parent
         assert temporary.suffix == ".csv"

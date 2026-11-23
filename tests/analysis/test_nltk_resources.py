@@ -55,4 +55,5 @@ def test_zipped_resources_count_as_installed(monkeypatch: pytest.MonkeyPatch) ->
         return resource
 
     monkeypatch.setattr(nltk_resources.nltk.data, "find", find)
+
     assert nltk_resources.missing_nltk_resources() == []

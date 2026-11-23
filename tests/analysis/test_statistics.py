@@ -44,6 +44,7 @@ def test_pearson_correlations_returns_before_and_after_rows(sample_frame: pd.Dat
 def test_pearson_correlations_rejects_missing_column(sample_frame: pd.DataFrame) -> None:
     """Report a requested column that is absent from the frame."""
     reviews = _scored_frame(sample_frame).drop(columns=["helpful_votes"])
+
     with pytest.raises(KeyError):
         pearson_correlations(reviews, "2023-09-29")
 

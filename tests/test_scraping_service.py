@@ -13,7 +13,7 @@ from steam_review_analysis import cli
 from steam_review_analysis.io import read_raw_reviews
 from steam_review_analysis.schema import Review
 from steam_review_analysis.scraping import driver, scraper, service
-from steam_review_analysis.scraping.scraper import ScraperSettings, ScrapingError
+from steam_review_analysis.scraping.settings import ScraperSettings, ScrapingError
 
 
 @pytest.fixture
@@ -53,6 +53,7 @@ def test_public_workflow_saves_each_game_once(tmp_path: Path, browser: Mock) -> 
         settings=ScraperSettings(target_reviews=1, scroll_pause_s=0),
         raw_dir=tmp_path,
     )
+
     assert paths == {42: tmp_path / "42_reviews.csv", 43: tmp_path / "43_reviews.csv"}
     assert read_raw_reviews(tmp_path)["Game"].tolist() == [42, 43]
     assert browser.get.call_count == 2
@@ -68,8 +69,10 @@ def test_existing_file_fails_before_browser_start(
     monkeypatch.setattr(driver.webdriver, "Chrome", factory)
     path = tmp_path / "43_reviews.csv"
     path.write_bytes(b"existing dataset")
+
     with pytest.raises(FileExistsError):
         service.scrape_games([42, 43], raw_dir=tmp_path)
+
     factory.assert_not_called()
     assert not (tmp_path / "42_reviews.csv").exists()
     assert path.read_bytes() == b"existing dataset"
@@ -90,6 +93,7 @@ def test_cli_browser_failure_preserves_csv_and_reports_failure(
 
     data_dir = ["--data-dir", str(tmp_path)]
     assert cli.main([*data_dir, "scrape", "42", "--overwrite", "--scroll-pause", "0"]) == 1
+
     assert "Scraping failed" in caplog.text
     assert path.read_bytes() == b"existing dataset"
     browser.quit.assert_called_once()
@@ -102,6 +106,7 @@ def test_partial_results_are_not_published_on_browser_failure(
     path = tmp_path / "42_reviews.csv"
     path.write_bytes(b"existing dataset")
     browser.find_elements.side_effect = [[Mock()], WebDriverException("lost browser")]
+
     with pytest.raises(ScrapingError):
         service.scrape_games(
             [42],
@@ -109,6 +114,7 @@ def test_partial_results_are_not_published_on_browser_failure(
             raw_dir=tmp_path,
             overwrite=True,
         )
+
     assert path.read_bytes() == b"existing dataset"
     browser.quit.assert_called_once()
 
@@ -116,12 +122,14 @@ def test_partial_results_are_not_published_on_browser_failure(
 def test_empty_page_creates_no_csv(tmp_path: Path, browser: Mock) -> None:
     """Fail an empty scrape without publishing a header-only CSV."""
     browser.find_elements.return_value = []
+
     with pytest.raises(ScrapingError, match="no valid reviews"):
         service.scrape_games(
             [42],
             settings=ScraperSettings(scroll_pause_s=0, max_stalled_scrolls=2),
             raw_dir=tmp_path,
         )
+
     assert list(tmp_path.iterdir()) == []
     browser.quit.assert_called_once()
 
@@ -130,8 +138,10 @@ def test_shutdown_failure_does_not_mask_scraping_failure(tmp_path: Path, browser
     """Keep the original navigation failure when browser shutdown also raises an error."""
     browser.get.side_effect = WebDriverException("navigation failed")
     browser.quit.side_effect = WebDriverException("shutdown failed")
+
     with pytest.raises(ScrapingError, match="browser failed") as caught:
         service.scrape_games([42], raw_dir=tmp_path)
+
     assert caught.value.__cause__ is browser.get.side_effect
 
 
@@ -144,8 +154,10 @@ def test_invalid_game_selection_does_not_start_browser(
     """Reject empty or invalid game selections before launching Chrome."""
     factory = Mock()
     monkeypatch.setattr(driver.webdriver, "Chrome", factory)
+
     with pytest.raises(ValueError):
         service.scrape_games(app_ids, raw_dir=tmp_path)
+
     factory.assert_not_called()
 
 
@@ -157,6 +169,8 @@ def test_cli_reports_browser_startup_failure(
     """Report Chrome startup errors through logging and exit code 1 without writing data."""
     factory = Mock(side_effect=WebDriverException("Chrome unavailable"))
     monkeypatch.setattr(driver.webdriver, "Chrome", factory)
+
     assert cli.main(["--data-dir", str(tmp_path), "scrape", "42"]) == 1
+
     assert "Chrome unavailable" in caplog.text
     assert list(tmp_path.iterdir()) == []

@@ -9,7 +9,8 @@ from selenium.webdriver.remote.webdriver import WebDriver
 
 from steam_review_analysis.schema import Review
 from steam_review_analysis.scraping import scraper
-from steam_review_analysis.scraping.scraper import ReviewScraper, ScraperSettings, ScrapingError
+from steam_review_analysis.scraping.scraper import ReviewScraper
+from steam_review_analysis.scraping.settings import ScraperSettings, ScrapingError
 
 
 class FakeBody:
@@ -153,8 +154,10 @@ def test_repeated_stale_errors_have_a_finite_limit(monkeypatch: pytest.MonkeyPat
     driver = FakeDriver(available=1)
     monkeypatch.setattr(driver, "find_elements", stale_cards)
     settings = ScraperSettings(scroll_pause_s=0, max_stale_retries=3)
+
     with pytest.raises(ScrapingError, match="retry limit"):
         ReviewScraper(cast(WebDriver, driver), settings).scrape(42)
+
     assert driver.scrolls == settings.max_stale_retries
 
 
@@ -174,8 +177,10 @@ def test_navigation_failure_is_reported(monkeypatch: pytest.MonkeyPatch) -> None
 
     driver = FakeDriver(available=1)
     monkeypatch.setattr(driver, "get", fail_navigation)
+
     with pytest.raises(ScrapingError, match="browser failed"):
         ReviewScraper(cast(WebDriver, driver)).scrape(42)
+
     assert driver.scrolls == 0
 
 
@@ -217,5 +222,6 @@ def test_transient_stale_errors_reset_after_success(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(driver, "find_elements", intermittent_cards)
     monkeypatch.setattr(scraper, "parse_card", parse_card)
     settings = ScraperSettings(target_reviews=2, scroll_pause_s=0, max_stale_retries=3)
+
     assert len(ReviewScraper(cast(WebDriver, driver), settings).scrape(42)) == 2
     assert calls == 6

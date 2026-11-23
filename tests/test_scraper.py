@@ -86,6 +86,7 @@ def test_parse_card_extracts_all_fields() -> None:
 def test_parse_card_without_helpful_votes_uses_placeholder() -> None:
     """Keep a valid review when only its optional helpful-vote label is absent."""
     review = parse_card(make_card(**{".found_helpful": None}), app_id=1)
+
     assert review is not None
     assert review.helpful_votes == NO_HELPFUL_VOTES
 
@@ -108,6 +109,7 @@ def test_parse_card_skips_empty_text() -> None:
 def test_parse_card_preserves_first_line_without_date_in_body() -> None:
     """Keep the first review sentence when the text block contains no posting label."""
     review = parse_card(make_card(**{".apphub_CardTextContent": "Great game.\nBuy it."}), 1)
+
     assert review is not None
     assert review.text == "Great game. Buy it."
 
@@ -120,6 +122,8 @@ def test_parse_card_accepts_current_year_date() -> None:
             ".apphub_CardTextContent": "Posted: 21 May\nGreat game.",
         }
     )
+
     review = parse_card(card, 1)
+
     assert review is not None
     assert review.date == date(date.today().year, 5, 21)
