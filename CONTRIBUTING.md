@@ -103,11 +103,11 @@ The `Docs` workflow publishes the reference to GitHub Pages on every push to `ma
 
 ### Test structure
 
-Tests follow the Arrange, Act, Assert pattern. When a test has separate setup, an action and
-checks, mark the phases with `# Arrange`, `# Act` and `# Assert` comments. Leave out
-`# Arrange` when there is no setup, and use `# Act & Assert` when the call is checked inside
-`pytest.raises` or within the assertion itself. A one-line test such as
-`assert parse_review_date("May 21, 2024") == date(2024, 5, 21)` needs no comments.
+Tests follow the Arrange, Act, Assert pattern, written as paragraphs: the setup, the call
+under test and the checks are separate blocks divided by one blank line, without
+`# Arrange`/`# Act`/`# Assert` comments. When the call is checked inside `pytest.raises` or
+within the assertion itself, the action and checks form one block. A one-line test such as
+`assert parse_review_date("May 21, 2024") == date(2024, 5, 21)` needs no blank lines.
 
 Tests have docstrings describing the scenario. Fixtures and helpers document their arguments
 and return values; ordinary tests need not repeat fixture arguments in an `Args` section.
