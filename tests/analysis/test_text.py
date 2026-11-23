@@ -28,13 +28,11 @@ def test_wordnet_pos_maps_treebank_tags(tag: str, expected: str) -> None:
 @pytest.mark.usefixtures("nltk_corpora")
 def test_preprocess_text_normalizes_and_applies_domain_rules() -> None:
     """Lowercase, strip punctuation, lemmatize and apply replacements and preserved words."""
-    # Arrange
     config = PreprocessingConfig(
         preserve_keywords=frozenset({"cs"}),
         replacements=MappingProxyType({"cheater": "cheat", "csgo": "cs"}),
     )
 
-    # Act & Assert
     assert preprocess_text("Cheater plays CSGO and CS!", config) == "cheat play cs cs"
 
 
@@ -75,7 +73,6 @@ def test_filter_tokens_preserves_order() -> None:
 @pytest.mark.usefixtures("nltk_corpora")
 def test_prepare_documents_adds_processed_text_and_vocabulary(sample_frame: pd.DataFrame) -> None:
     """Prepare documents, filter rare tokens and drop rows with no processed text."""
-    # Arrange
     frame = pd.concat(
         [
             sample_frame,
@@ -93,10 +90,8 @@ def test_prepare_documents_adds_processed_text_and_vocabulary(sample_frame: pd.D
         replacements=MappingProxyType({"cheater": "cheat"}),
     )
 
-    # Act
     prepared = prepare_documents(frame, config, min_word_freq=2)
 
-    # Assert
     assert "processed_review" in prepared.reviews.columns
     assert "document" in prepared.reviews.columns
     assert 3 not in prepared.reviews["app_id"].tolist()
@@ -116,10 +111,8 @@ def test_prepare_documents_rejects_missing_text_column(sample_frame: pd.DataFram
 
 def test_word_frequencies_counts_lowercase_words() -> None:
     """Count words case-insensitively while dropping punctuation."""
-    # Act
     result = word_frequencies(["Hello hello, WORLD!", None])
 
-    # Assert
     assert result.to_dict("records") == [
         {"word": "hello", "frequency": 2},
         {"word": "world", "frequency": 1},
@@ -128,10 +121,8 @@ def test_word_frequencies_counts_lowercase_words() -> None:
 
 def test_word_frequencies_limits_results() -> None:
     """Return only the most frequent requested words."""
-    # Act
     result = word_frequencies(["a b b c c c"], top_n=2)
 
-    # Assert
     assert result["word"].tolist() == ["c", "b"]
 
 

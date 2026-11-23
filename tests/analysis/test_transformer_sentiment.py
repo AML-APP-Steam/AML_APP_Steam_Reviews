@@ -85,10 +85,8 @@ def fake_backend(monkeypatch: pytest.MonkeyPatch) -> FakeBackend:
 
 def test_available_models_are_ordered_by_size() -> None:
     """Expose all supported models, smallest first."""
-    # Act
     models = available_models()
 
-    # Assert
     assert [model.key for model in models] == [
         "nano-jev",
         "laya-multilingual",
@@ -115,10 +113,8 @@ def test_model_spec_rejects_unknown_model() -> None:
 
 def test_predict_sentiment_returns_label_score_and_confidence(fake_backend: FakeBackend) -> None:
     """Convert probabilities into an argmax label and expected polarity."""
-    # Act
     predictions = predict_sentiment(["great game", "bad game"], batch_size=1)
 
-    # Assert
     assert len(predictions) == 2
     prediction = predictions[0]
     assert prediction.label == "positive"
@@ -132,13 +128,10 @@ def test_predict_sentiment_returns_label_score_and_confidence(fake_backend: Fake
 
 def test_predict_sentiment_normalises_backend_output(fake_backend: FakeBackend) -> None:
     """Accept unnormalised backend output and normalize it before scoring."""
-    # Arrange
     fake_backend.probabilities = {"negative": 2.0, "neutral": 1.0, "positive": 7.0}
 
-    # Act
     prediction = predict_sentiment(["text"])[0]
 
-    # Assert
     assert prediction.probabilities == pytest.approx(
         {"negative": 0.2, "neutral": 0.1, "positive": 0.7}
     )
@@ -147,10 +140,8 @@ def test_predict_sentiment_normalises_backend_output(fake_backend: FakeBackend) 
 
 def test_predict_sentiment_rejects_invalid_backend_output(fake_backend: FakeBackend) -> None:
     """Reject negative probabilities instead of silently clipping them."""
-    # Arrange
     fake_backend.probabilities = {"negative": -0.1, "neutral": 0.2, "positive": 0.9}
 
-    # Act & Assert
     with pytest.raises(ValueError, match="Invalid probability"):
         predict_sentiment(["text"])
 
@@ -165,24 +156,19 @@ def test_clear_model_cache_releases_loaded_backends(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Clear the backend cache so another model can reuse the memory."""
-    # Arrange
     clear = Mock()
     monkeypatch.setattr(transformer_sentiment._cached_backend, "cache_clear", clear)
 
-    # Act
     clear_model_cache()
 
-    # Assert
     clear.assert_called_once()
 
 
 def test_predict_sentiment_rejects_nonpositive_batch_size(fake_backend: FakeBackend) -> None:
     """Reject a zero batch size before loading a model."""
-    # Act
     with pytest.raises(ValueError, match="batch_size"):
         predict_sentiment(["text"], batch_size=0)
 
-    # Assert
     assert fake_backend.calls == []
 
 
@@ -196,14 +182,11 @@ def test_add_transformer_sentiment_preserves_input_and_adds_columns(
     sample_frame: pd.DataFrame,
 ) -> None:
     """Score processed reviews without modifying the caller's frame."""
-    # Arrange
     original = sample_frame.assign(processed_review=sample_frame["text"])
     before = original.copy(deep=True)
 
-    # Act
     result = add_transformer_sentiment(original)
 
-    # Assert
     pd.testing.assert_frame_equal(original, before)
     assert {
         "transformer_score",
@@ -228,7 +211,6 @@ def test_add_transformer_sentiment_rejects_missing_column(sample_frame: pd.DataF
 
 def test_transformer_sentiment_summary_reports_counts_and_shares() -> None:
     """Summarize count, mean polarity and category shares."""
-    # Arrange
     reviews = pd.DataFrame(
         {
             "transformer_score": [0.6, 0.0, -0.7, 0.2],
@@ -236,10 +218,8 @@ def test_transformer_sentiment_summary_reports_counts_and_shares() -> None:
         }
     )
 
-    # Act
     summary = transformer_sentiment_summary(reviews)
 
-    # Assert
     assert summary["count"] == 4
     assert summary["mean_score"] == pytest.approx(0.025)
     assert summary["positive_share"] == 0.5
@@ -249,7 +229,6 @@ def test_transformer_sentiment_summary_reports_counts_and_shares() -> None:
 
 def test_transformer_sentiment_summary_handles_empty_frame() -> None:
     """Return NaN aggregates when the frame has no reviews."""
-    # Act
     summary = transformer_sentiment_summary(
         pd.DataFrame(
             {
@@ -259,7 +238,6 @@ def test_transformer_sentiment_summary_handles_empty_frame() -> None:
         )
     )
 
-    # Assert
     assert summary["count"] == 0
     assert summary["mean_score"] != summary["mean_score"]
     assert summary["positive_share"] != summary["positive_share"]
@@ -273,16 +251,13 @@ def test_transformer_sentiment_summary_rejects_missing_columns() -> None:
 
 def test_nano_jev_backend_batches_decisions() -> None:
     """Split texts into the requested batch size and select the sentiment labels."""
-    # Arrange
     decider = Mock()
     decider.decide_many.side_effect = lambda items: [
         {"negative": 0.1, "neutral": 0.2, "positive": 0.7} for _ in items
     ]
 
-    # Act
     probabilities = _NanoJevBackend(decider).predict_proba(["one", "two", "three"], 2)
 
-    # Assert
     assert len(probabilities) == 3
     assert decider.decide_many.call_count == 2
     first_items = decider.decide_many.call_args_list[0].args[0]
@@ -292,7 +267,6 @@ def test_nano_jev_backend_batches_decisions() -> None:
 
 def test_laya_backend_reads_choice_probabilities() -> None:
     """Adapt Laya's batched answer shape to plain probability mappings."""
-    # Arrange
     agent = Mock()
     agent.predict_batch.return_value = [
         {
@@ -302,37 +276,30 @@ def test_laya_backend_reads_choice_probabilities() -> None:
         }
     ]
 
-    # Act
     probabilities = _LayaBackend(agent).predict_proba(["text"], 8)
 
-    # Assert
     assert probabilities == [{"negative": 0.1, "neutral": 0.2, "positive": 0.7}]
     agent.predict_batch.assert_called_once()
 
 
 def test_laya_backend_rejects_missing_probabilities() -> None:
     """Report an unexpected Laya response shape."""
-    # Arrange
     agent = Mock()
     agent.predict_batch.return_value = [{"answers": {}}]
 
-    # Act & Assert
     with pytest.raises(ValueError, match="sentiment probabilities"):
         _LayaBackend(agent).predict_proba(["text"], 8)
 
 
 def test_tiny_jev_backend_reads_choice_probabilities() -> None:
     """Adapt Tiny-Jev's per-state choice result to plain probability mappings."""
-    # Arrange
     model = Mock()
     model.choice.return_value = {
         "probabilities": {"negative": 0.1, "neutral": 0.2, "positive": 0.7}
     }
 
-    # Act
     probabilities = _TinyJevBackend(Mock(), model).predict_proba(["one", "two"], 4)
 
-    # Assert
     assert probabilities == [
         {"negative": 0.1, "neutral": 0.2, "positive": 0.7},
         {"negative": 0.1, "neutral": 0.2, "positive": 0.7},
@@ -342,11 +309,9 @@ def test_tiny_jev_backend_reads_choice_probabilities() -> None:
 
 def test_tiny_jev_backend_rejects_missing_probabilities() -> None:
     """Report an unexpected Tiny-Jev response shape."""
-    # Arrange
     model = Mock()
     model.choice.return_value = {}
 
-    # Act & Assert
     with pytest.raises(ValueError, match="Tiny-Jev"):
         _TinyJevBackend(Mock(), model).predict_proba(["text"], 1)
 
@@ -355,21 +320,18 @@ def test_cuda_available_is_false_without_torch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Do not attempt torch.compile when torch is unavailable."""
-    # Arrange
     monkeypatch.setattr(
         transformer_sentiment.importlib,
         "import_module",
         Mock(side_effect=ImportError("missing")),
     )
 
-    # Act & Assert
     assert _cuda_available(None) is False
 
 
 def test_prefers_fp16_on_pre_ampere_cuda() -> None:
     """Use fp16 instead of bf16 on GPUs below compute capability 8.0."""
 
-    # Arrange
     class FakeCuda:
         """Report a pre-Ampere compute capability."""
 
@@ -384,7 +346,6 @@ def test_prefers_fp16_on_pre_ampere_cuda() -> None:
 
         cuda = FakeCuda()
 
-    # Act & Assert
     assert _prefers_fp16(FakeTorch(), "cuda") is True
     assert _prefers_fp16(FakeTorch(), "cpu") is False
 
@@ -393,21 +354,18 @@ def test_missing_optional_dependency_reports_install_hint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Translate an ImportError into an actionable runtime error."""
-    # Arrange
     monkeypatch.setattr(
         transformer_sentiment.importlib,
         "import_module",
         Mock(side_effect=ImportError("missing")),
     )
 
-    # Act & Assert
     with pytest.raises(RuntimeError, match=r"steam-review-analysis\[sentiment\]"):
         transformer_sentiment._load_backend(MODEL_SPECS["nano-jev"], None)
 
 
 def test_transformer_sentiment_arguments_parse() -> None:
     """Parse the transformer sentiment subcommand and its model options."""
-    # Act
     args = cli.build_parser().parse_args(
         [
             "analyse",
@@ -423,7 +381,6 @@ def test_transformer_sentiment_arguments_parse() -> None:
         ]
     )
 
-    # Assert
     assert args.analysis_command == "transformer-sentiment"
     assert args.model == "laya-multilingual"
     assert args.batch_size == 4
@@ -437,7 +394,6 @@ def test_transformer_sentiment_cli_writes_table(
     tmp_path: Path,
 ) -> None:
     """Dispatch the CLI command and write the returned table."""
-    # Arrange
     prepared = SimpleNamespace(reviews=sample_frame.assign(processed_review=sample_frame["text"]))
     monkeypatch.setattr(analysis_cli, "load_reviews", Mock(return_value=sample_frame))
     monkeypatch.setattr(analysis_cli, "prepare_documents", Mock(return_value=prepared))
@@ -448,7 +404,6 @@ def test_transformer_sentiment_cli_writes_table(
     workflow = Mock(return_value=scored)
     monkeypatch.setattr(analysis_cli, "add_transformer_sentiment", workflow)
 
-    # Act
     code = cli.main(
         [
             "analyse",
@@ -462,7 +417,6 @@ def test_transformer_sentiment_cli_writes_table(
         ]
     )
 
-    # Assert
     assert code == 0
     assert workflow.call_args.kwargs["batch_size"] == 3
     assert (tmp_path / "transformer_sentiment.csv").exists()
